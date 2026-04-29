@@ -37,12 +37,12 @@ const LLM_TIMEOUT_MS = 15_000;
 const LLM_TEMPERATURE = 0.3;
 
 function isConfigured(): boolean {
-  return DEEPSEEK_API_KEY.length > 0;
+  return DEEPSEEK_API_KEY.length > 0 || DEEPSEEK_BASE_URL !== "https://api.deepseek.com";
 }
 
 function getClient(): OpenAI {
   return new OpenAI({
-    apiKey: DEEPSEEK_API_KEY,
+    apiKey: DEEPSEEK_API_KEY || "local",
     baseURL: DEEPSEEK_BASE_URL,
     timeout: LLM_TIMEOUT_MS,
   });
