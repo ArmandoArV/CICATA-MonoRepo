@@ -166,10 +166,17 @@ export const DocumentController = {
         : "document";
       const fileName = `${template.id}_${studentName}_${fullFolio}.pdf`;
 
+      // Resolve signatory professor: explicit > student's academic director
+      let signatoryProfessorId = body.professorId ?? null;
+      if (!signatoryProfessorId && body.studentId) {
+        const stu = await StudentRepository.findById(body.studentId);
+        if (stu) signatoryProfessorId = stu.academicDirectorId;
+      }
+
       // Store folio record
       const { DocFolioRepository } = await import("@/backend/repositories");
       await DocFolioRepository.create({
-        professorId: body.professorId ?? 0,
+        professorId: signatoryProfessorId ?? 1,
         docTypeId: template.docTypeId,
         studentId: body.studentId ?? null,
         cycleId: body.cycleId,
