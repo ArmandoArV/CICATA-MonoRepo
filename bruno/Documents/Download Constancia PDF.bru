@@ -1,0 +1,28 @@
+meta {
+  name: Download Constancia PDF
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/documents/download
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "templateId": "constancia-inscripcion",
+    "studentId": 1,
+    "cycleId": 1,
+    "customFields": {
+      "signatoryName": "DRA. MARÍA ELENA LÓPEZ",
+      "signatoryTitle": "Directora CICATA Morelos",
+      "signatorySubtitle": "Instituto Politécnico Nacional"
+    }
+  }
+}
