@@ -1,16 +1,14 @@
 import "server-only";
 
-import { hash, compare } from "bcryptjs";
+import { createHash } from "crypto";
 
-const SALT_ROUNDS = 12;
-
-export async function hashPassword(password: string): Promise<string> {
-  return hash(password, SALT_ROUNDS);
+export function hashPassword(password: string): string {
+  return createHash("sha256").update(password).digest("hex");
 }
 
-export async function comparePassword(
+export function comparePassword(
   password: string,
   hashedPassword: string
-): Promise<boolean> {
-  return compare(password, hashedPassword);
+): boolean {
+  return hashPassword(password) === hashedPassword;
 }

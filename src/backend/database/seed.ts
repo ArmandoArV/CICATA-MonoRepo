@@ -2,6 +2,7 @@ import "server-only";
 
 import { query, execute } from "@/backend/database/pool";
 import { hashPassword } from "@/backend/utils";
+import { Logger } from "@/backend/utils";
 
 let seeded = false;
 
@@ -12,11 +13,11 @@ export async function seedDevData(): Promise<void> {
   // Check if data already exists
   const roles = await query<{ c: number }>("SELECT COUNT(*) AS c FROM userRoles");
   if ((roles[0]?.c ?? 0) > 0) {
-    console.log("[Seed] Data already exists — skipping");
+    Logger.info("Seed", "Data already exists — skipping");
     return;
   }
 
-  console.log("[Seed] Seeding development data...");
+  Logger.info("Seed", "Seeding development data...");
 
   // 1. User Roles
   await execute("INSERT INTO userRoles (role) VALUES ('ADMIN'), ('PROFESSOR'), ('STUDENT')");
@@ -53,7 +54,7 @@ export async function seedDevData(): Promise<void> {
   );
 
   // 5. Admin (hash password at runtime)
-  const hashedPw = await hashPassword("Admin123");
+  const hashedPw = hashPassword("Admin123");
   await execute(
     "INSERT INTO admin (userId, username, password, email) VALUES (?, ?, ?, ?)",
     [1, "admin", hashedPw, "admin@cicata.ipn.mx"]
@@ -138,5 +139,5 @@ export async function seedDevData(): Promise<void> {
       ('Carta de Aceptación',            'student')`
   );
 
-  console.log("[Seed] Dev data ready — admin/Admin123 (10 users, 4 profs, 5 students, 5 subjects, 4 groups)");
+  Logger.info("Seed", "Dev data ready — admin/Admin123 (10 users, 4 profs, 5 students, 5 subjects, 4 groups)");
 }
