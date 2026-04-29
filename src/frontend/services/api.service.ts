@@ -1,7 +1,6 @@
 import type {
   ApiResponse,
   LoginRequest,
-  RegisterRequest,
   AuthResponse,
 } from "@/frontend/types";
 
@@ -65,17 +64,6 @@ export const AuthApi = {
   async login(data: LoginRequest): Promise<ApiResponse<AuthResponse>> {
     const result = await apiService.post<AuthResponse>(
       "/api/auth/login",
-      data
-    );
-    if (result.success && result.data?.token) {
-      apiService.setToken(result.data.token);
-    }
-    return result;
-  },
-
-  async register(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    const result = await apiService.post<AuthResponse>(
-      "/api/auth/register",
       data
     );
     if (result.success && result.data?.token) {

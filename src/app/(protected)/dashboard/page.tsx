@@ -10,7 +10,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {user?.name}</p>
+        <p className="text-gray-600">Welcome back, {user?.username}</p>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -21,8 +21,8 @@ export default function DashboardPage() {
           <CardContent>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Name</dt>
-                <dd className="font-medium text-gray-900">{user?.name}</dd>
+                <dt className="text-gray-500">Username</dt>
+                <dd className="font-medium text-gray-900">{user?.username}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">Email</dt>
@@ -30,7 +30,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">Role</dt>
-                <dd className="font-medium text-gray-900">{user?.role}</dd>
+                <dd className="font-medium text-gray-900">{user?.user.role}</dd>
               </div>
             </dl>
           </CardContent>

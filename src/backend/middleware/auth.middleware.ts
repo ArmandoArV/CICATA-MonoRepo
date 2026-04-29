@@ -24,10 +24,12 @@ export async function authenticate(
     return unauthorized("Invalid or expired token");
   }
 
+  const p = payload as unknown as Record<string, unknown>;
   return {
-    userId: payload.sub,
-    email: payload.email,
-    role: payload.role,
+    userId: Number(p.sub),
+    adminId: p.adminId as number,
+    email: p.email as string,
+    role: p.role as string,
   };
 }
 

@@ -2,7 +2,6 @@ import "server-only";
 
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import type { AuthTokenPayload } from "@/backend/types";
-import { UserRole } from "@/shared/types";
 
 const getSecret = (): Uint8Array => {
   const secret = process.env.JWT_SECRET;
@@ -13,11 +12,12 @@ const getSecret = (): Uint8Array => {
 const EXPIRATION = process.env.JWT_EXPIRATION || "24h";
 
 export async function signToken(payload: {
-  sub: string;
+  sub: number;
   email: string;
-  role: UserRole;
+  role: string;
+  adminId: number;
 }): Promise<string> {
-  return new SignJWT({ ...payload })
+  return new SignJWT({ ...payload, sub: String(payload.sub) })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(EXPIRATION)

@@ -21,7 +21,7 @@ export function Navbar() {
           {isAuthenticated ? (
             <>
               <span className="text-sm text-gray-600">
-                {user?.name}
+                {user?.username}
               </span>
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">
@@ -33,16 +33,9 @@ export function Navbar() {
               </Button>
             </>
           ) : (
-            <>
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Login
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button size="sm">Get Started</Button>
-              </Link>
-            </>
+            <Link href="/login">
+              <Button size="sm">Sign In</Button>
+            </Link>
           )}
         </div>
       </div>

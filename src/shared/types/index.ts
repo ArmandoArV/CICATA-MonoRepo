@@ -1,46 +1,213 @@
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  createdAt: Date;
-  updatedAt: Date;
+// ── Enums ──────────────────────────────────────────────
+
+export enum Gender {
+  M = "M",
+  F = "F",
+  X = "X",
 }
 
-export enum UserRole {
-  ADMIN = "ADMIN",
-  RESEARCHER = "RESEARCHER",
-  VIEWER = "VIEWER",
+export enum TimeModality {
+  TC = "TC",
+  TP = "TP",
 }
+
+export enum ProjectType {
+  RESIDENCIA = "Residencia Profesional",
+  SERVICIO_SOCIAL = "Servicio Social",
+  ESTANCIA = "Estancia Tecnológica",
+}
+
+export enum DocTarget {
+  PROFESSOR = "professor",
+  STUDENT = "student",
+}
+
+export enum StudentStatus {
+  ACTIVO = "ACTIVO",
+  INSCRITO = "INSCRITO",
+  GRADUADO = "GRADUADO",
+  BAJA_TEMPORAL = "BAJA TEMPORAL",
+  BAJA_DEFINITIVA = "BAJA DEFINITIVA",
+}
+
+// ── API DTOs (safe for client consumption) ────────────
+
+export interface SafeUser {
+  id: number;
+  name: string;
+  lastName: string;
+  role: string;
+  gender: Gender;
+  academicDegree: string | null;
+}
+
+export interface SafeAdmin {
+  id: number;
+  userId: number;
+  username: string;
+  email: string;
+  user: SafeUser;
+}
+
+export interface SafeProfessor {
+  id: number;
+  userId: number;
+  ipnRegistration: string | null;
+  employeeNumber: string;
+  academicLoad: number;
+  availableHours: number;
+  programId: number;
+  statusId: number;
+  user: SafeUser;
+}
+
+export interface SafeStudent {
+  id: number;
+  userId: number;
+  curp: string;
+  registration: string;
+  timeModality: TimeModality;
+  programId: number;
+  localTutorId: number;
+  academicDirectorId: number;
+  enrollmentCycleId: number;
+  semester: number;
+  statusId: number;
+  user: SafeUser;
+}
+
+export interface ProgramDTO {
+  id: number;
+  name: string;
+  isSocialService: boolean;
+}
+
+export interface SchoolCycleDTO {
+  id: number;
+  cycle: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface StatusDTO {
+  id: number;
+  type: string;
+}
+
+export interface UserRoleDTO {
+  id: number;
+  role: string;
+}
+
+export interface SubjectDTO {
+  id: number;
+  name: string;
+  subjectKey: string;
+  credits: number;
+  semester: number;
+  topics: string;
+}
+
+export interface StudyGroupDTO {
+  id: number;
+  groupKey: string;
+  subjectId: number;
+  campus: string;
+  place: string;
+  schedule: string | null;
+  professorId: number;
+  cycleId: number;
+  observations: string | null;
+}
+
+export interface StudentInGroupDTO {
+  id: number;
+  studentId: number;
+  groupId: number;
+  grade: string | null;
+  recordFolio: string | null;
+  termType: string | null;
+}
+
+export interface ReenrollmentDTO {
+  id: number;
+  studentId: number;
+  cycleId: number;
+  advisorId: number;
+  academicDirectorId: number;
+}
+
+export interface StudentProjectDTO {
+  id: number;
+  studentId: number;
+  advisorId: number;
+  originInstitution: string | null;
+  originCareer: string | null;
+  projectType: ProjectType;
+  projectName: string;
+  totalHours: number;
+  startDate: string;
+  endDate: string;
+}
+
+export interface GroupVisitingProfessorDTO {
+  id: number;
+  groupId: number;
+  professorId: number;
+  assignedHours: number;
+}
+
+export interface DocTypeDTO {
+  id: number;
+  name: string;
+  target: DocTarget;
+}
+
+export interface DocFormatDTO {
+  id: number;
+  docTypeId: number;
+  year: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+export interface DocFolioDTO {
+  id: number;
+  professorId: number;
+  docTypeId: number;
+  studentId: number | null;
+  cycleId: number;
+  folioNumber: number;
+  fullFolio: string;
+  signatoryTitle: string;
+  elaboratedBy: number | null;
+  reviewedBy: number | null;
+  ccList: string | null;
+  issuedAt: string;
+}
+
+// ── Auth contracts ────────────────────────────────────
 
 export interface AuthTokenPayload {
-  sub: string;
+  sub: number;
   email: string;
-  role: UserRole;
+  role: string;
   iat: number;
   exp: number;
 }
 
 export interface LoginRequest {
-  email: string;
+  usernameOrEmail: string;
   password: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
 }
 
 export interface AuthResponse {
-  user: SafeUser;
+  user: SafeAdmin;
   token: string;
 }
 
-export type SafeUser = Omit<User, "createdAt" | "updatedAt"> & {
-  createdAt: string;
-  updatedAt: string;
-};
+// ── Generic API wrappers ──────────────────────────────
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

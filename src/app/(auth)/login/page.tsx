@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/frontend/hooks";
-import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/frontend/components/ui";
+import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/frontend/components/ui";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +19,7 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    const result = await login({ email, password });
+    const result = await login({ usernameOrEmail, password });
     if (result.success) {
       router.push("/dashboard");
     } else {
@@ -35,7 +34,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to your CICATA account</CardDescription>
+          <CardDescription>Sign in to the CICATA platform</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -45,13 +44,13 @@ export default function LoginPage() {
               </div>
             )}
             <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              label="Username or Email"
+              type="text"
+              value={usernameOrEmail}
+              onChange={(e) => setUsernameOrEmail(e.target.value)}
+              placeholder="admin or admin@cicata.ipn.mx"
               required
-              autoComplete="email"
+              autoComplete="username"
             />
             <Input
               label="Password"
@@ -67,17 +66,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-gray-500">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Sign up
-            </Link>
-          </p>
-        </CardFooter>
       </Card>
     </div>
   );

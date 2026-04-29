@@ -1,71 +1,66 @@
 import "server-only";
 
+import { AdminRepository } from "@/backend/repositories";
 import { UserRepository } from "@/backend/repositories";
-import { toSafeUser } from "@/backend/models";
+import { UserRoleRepository } from "@/backend/repositories";
+import { toSafeAdmin } from "@/backend/models";
 import { hashPassword, comparePassword, signToken } from "@/backend/utils";
-import type { SafeUser } from "@/shared/types";
-import { UserRole } from "@/shared/types";
+import type { SafeAdmin } from "@/shared/types";
 
 export interface AuthResult {
-  user: SafeUser;
+  user: SafeAdmin;
   token: string;
 }
 
 export const AuthService = {
-  async register(data: {
-    email: string;
-    password: string;
-    name: string;
-  }): Promise<AuthResult> {
-    const exists = await UserRepository.existsByEmail(data.email);
-    if (exists) {
-      throw new Error("A user with this email already exists");
-    }
-
-    const passwordHash = await hashPassword(data.password);
-    const user = await UserRepository.create({
-      email: data.email,
-      name: data.name,
-      passwordHash,
-    });
-
-    const token = await signToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role as UserRole,
-    });
-
-    return { user: toSafeUser(user), token };
-  },
-
   async login(data: {
-    email: string;
+    usernameOrEmail: string;
     password: string;
   }): Promise<AuthResult> {
-    const user = await UserRepository.findByEmail(data.email);
-    if (!user) {
-      throw new Error("Invalid email or password");
+    const admin = await AdminRepository.findByUsernameOrEmail(
+      data.usernameOrEmail
+    );
+    if (!admin) {
+      throw new Error("Invalid credentials");
     }
 
-    const valid = await comparePassword(data.password, user.passwordHash);
+    const valid = await comparePassword(data.password, admin.password);
     if (!valid) {
-      throw new Error("Invalid email or password");
+      throw new Error("Invalid credentials");
     }
+
+    const userRow = await UserRepository.findById(admin.userId);
+    if (!userRow) {
+      throw new Error("User record not found");
+    }
+
+    const role = await UserRoleRepository.findById(userRow.roleId);
+    const roleName = role?.role ?? "UNKNOWN";
 
     const token = await signToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role as UserRole,
+      sub: userRow.idUser,
+      email: admin.email,
+      role: roleName,
+      adminId: admin.idAdmin,
     });
 
-    return { user: toSafeUser(user), token };
+    return { user: toSafeAdmin(admin, userRow, roleName), token };
   },
 
-  async getProfile(userId: string): Promise<SafeUser> {
-    const user = await UserRepository.findById(userId);
-    if (!user) {
+  async getProfile(userId: number): Promise<SafeAdmin> {
+    const userRow = await UserRepository.findById(userId);
+    if (!userRow) {
       throw new Error("User not found");
     }
-    return toSafeUser(user);
+
+    const admin = await AdminRepository.findByUserId(userId);
+    if (!admin) {
+      throw new Error("Admin profile not found");
+    }
+
+    const role = await UserRoleRepository.findById(userRow.roleId);
+    const roleName = role?.role ?? "UNKNOWN";
+
+    return toSafeAdmin(admin, userRow, roleName);
   },
 };

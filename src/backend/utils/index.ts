@@ -9,4 +9,4 @@ export {
   notFound,
   serverError,
 } from "./response.utils";
-export { loginSchema, registerSchema, validateBody } from "./validation.utils";
+export { loginSchema, validateBody } from "./validation.utils";

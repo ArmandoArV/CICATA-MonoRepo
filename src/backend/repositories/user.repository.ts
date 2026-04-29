@@ -1,54 +1,34 @@
 import "server-only";
 
-import type { UserModel } from "@/backend/models";
-import { UserRole } from "@/shared/types";
+import type { UserRow } from "@/backend/types";
 
-/**
- * In-memory user repository — development scaffold only.
- * Replace with a real database adapter (Prisma, Drizzle, etc.) for production.
- */
-const users = new Map<string, UserModel>();
+const users = new Map<number, UserRow>();
+let nextId = 1;
 
 export const UserRepository = {
-  async findById(id: string): Promise<UserModel | null> {
+  async findById(id: number): Promise<UserRow | null> {
     return users.get(id) ?? null;
   },
 
-  async findByEmail(email: string): Promise<UserModel | null> {
-    for (const user of users.values()) {
-      if (user.email === email) return user;
-    }
-    return null;
+  async create(data: Omit<UserRow, "idUser">): Promise<UserRow> {
+    const row: UserRow = { idUser: nextId++, ...data };
+    users.set(row.idUser, row);
+    return row;
   },
 
-  async create(data: {
-    email: string;
-    name: string;
-    passwordHash: string;
-    role?: UserRole;
-  }): Promise<UserModel> {
-    const now = new Date();
-    const user: UserModel = {
-      id: crypto.randomUUID(),
-      email: data.email,
-      name: data.name,
-      role: data.role ?? UserRole.RESEARCHER,
-      passwordHash: data.passwordHash,
-      createdAt: now,
-      updatedAt: now,
-    };
-    users.set(user.id, user);
-    return user;
+  async update(id: number, data: Partial<Omit<UserRow, "idUser">>): Promise<UserRow | null> {
+    const existing = users.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...data };
+    users.set(id, updated);
+    return updated;
   },
 
-  async existsByEmail(email: string): Promise<boolean> {
-    for (const user of users.values()) {
-      if (user.email === email) return true;
-    }
-    return false;
+  async delete(id: number): Promise<boolean> {
+    return users.delete(id);
   },
 
-  async count(): Promise<number> {
-    return users.size;
+  async findAll(): Promise<UserRow[]> {
+    return Array.from(users.values());
   },
 };
