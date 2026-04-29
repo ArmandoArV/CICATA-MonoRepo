@@ -220,6 +220,18 @@ export interface StudentTableRow {
   statusType: string;
 }
 
+export interface ProfessorTableRow {
+  id: number;
+  name: string;
+  lastName: string;
+  initials: string;
+  academicDegree: string | null;
+  employeeNumber: string;
+  programName: string;
+  academicLoad: number;
+  statusType: string;
+}
+
 // ── Generic API wrappers ──────────────────────────────
 
 export interface ApiResponse<T = unknown> {
