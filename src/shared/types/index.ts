@@ -207,6 +207,19 @@ export interface AuthResponse {
   token: string;
 }
 
+// ── Table view DTOs (denormalized for display) ───────
+
+export interface StudentTableRow {
+  id: number;
+  name: string;
+  lastName: string;
+  initials: string;
+  registration: string;
+  programName: string;
+  cycleName: string;
+  statusType: string;
+}
+
 // ── Generic API wrappers ──────────────────────────────
 
 export interface ApiResponse<T = unknown> {
