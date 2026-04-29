@@ -33,13 +33,13 @@ export const StatsService = {
       constancias: docCount?.c ?? 0,
     };
 
-    // Enrollment trend: students created per month (last 6 months)
+    // Enrollment trend: students per enrollment cycle (using schoolCycles.startDate)
     const trendRows = await query<{ month: string; count: number }>(
-      `SELECT DATE_FORMAT(s.createdAt, '%b') AS month, COUNT(*) AS count
+      `SELECT DATE_FORMAT(sc.startDate, '%b') AS month, COUNT(*) AS count
        FROM students s
-       WHERE s.createdAt >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-       GROUP BY MONTH(s.createdAt), DATE_FORMAT(s.createdAt, '%b')
-       ORDER BY MONTH(s.createdAt)`
+       JOIN schoolCycles sc ON s.enrollmentCycleId = sc.idCycle
+       GROUP BY sc.startDate, DATE_FORMAT(sc.startDate, '%b')
+       ORDER BY sc.startDate`
     );
 
     const enrollmentTrend =
@@ -54,18 +54,20 @@ export const StatsService = {
             { month: "Jun", count: 14 },
           ];
 
-    // Students by program per year
+    // Students by program: maestría vs doctorado (using programs.name LIKE)
     const programRows = await query<{
       year: number;
       maestria: number;
       doctorado: number;
     }>(
       `SELECT 
-         YEAR(s.createdAt) AS year,
-         SUM(CASE WHEN s.degreeId = 1 THEN 1 ELSE 0 END) AS maestria,
-         SUM(CASE WHEN s.degreeId = 2 THEN 1 ELSE 0 END) AS doctorado
+         YEAR(sc.startDate) AS year,
+         SUM(CASE WHEN p.name LIKE 'Maestr%' THEN 1 ELSE 0 END) AS maestria,
+         SUM(CASE WHEN p.name LIKE 'Doctor%' THEN 1 ELSE 0 END) AS doctorado
        FROM students s
-       GROUP BY YEAR(s.createdAt)
+       JOIN schoolCycles sc ON s.enrollmentCycleId = sc.idCycle
+       JOIN programs p ON s.programId = p.idProgram
+       GROUP BY YEAR(sc.startDate)
        ORDER BY year`
     );
 

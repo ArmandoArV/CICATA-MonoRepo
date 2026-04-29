@@ -27,8 +27,8 @@ export function EnrollmentChart({ data }: EnrollmentChartProps) {
           <option>Semestre 2024-2</option>
         </select>
       </div>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%" minHeight={200}>
           <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id="enrollGradient" x1="0" y1="0" x2="0" y2="1">

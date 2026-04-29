@@ -27,8 +27,8 @@ export function StudentsByProgramChart({ data }: StudentsByProgramChartProps) {
           <option>Semestral</option>
         </select>
       </div>
-      <div className="h-72">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%" minHeight={200}>
           <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
