@@ -75,6 +75,16 @@ export interface TemplateDefinition {
   buildSections: (ctx: TemplateContext) => TemplateSection[];
 }
 
+// ── AI metadata ───────────────────────────────────────
+
+export interface AiMetadata {
+  aiRequested: boolean;
+  aiUsed: boolean;
+  model?: string;
+  promptVersion?: string;
+  fallbackReason?: string;
+}
+
 // ── API request / response ────────────────────────────
 
 export interface GenerateDocumentRequest {
@@ -82,6 +92,7 @@ export interface GenerateDocumentRequest {
   studentId?: number;
   professorId?: number;
   cycleId: number;
+  useAI?: boolean;
   customFields?: Record<string, string>;
 }
 
@@ -89,4 +100,5 @@ export interface GenerateDocumentResponse {
   pdf: string; // base64
   folio: string;
   fileName: string;
+  ai: AiMetadata;
 }

@@ -31,13 +31,27 @@ graph TB
             R_ME["GET /api/auth/me"]
             R_LOGOUT["POST /api/auth/logout"]
             R_HEALTH["GET /api/health"]
+            R_DOCGEN["POST /api/documents/generate"]
+            R_DOCTPL["GET /api/documents/templates"]
         end
     end
 
     subgraph Backend["Backend Layer - src/backend"]
         MW["Middleware Bearer + Cookie Validation"]
-        CTRL["Controllers Auth"]
-        SERV["Services Auth"]
+        CTRL["Controllers Auth + Document"]
+
+        subgraph Services["Services"]
+            S_AUTH["Auth Service JWT + bcrypt"]
+            S_DOC["Document Service pdf-lib renderer"]
+            S_FOLIO["Folio Service sequential numbering"]
+            S_LLM["LLM Service DeepSeek via OpenAI SDK"]
+        end
+
+        subgraph Templates["Template Engine"]
+            T_REG["Template Registry 4 templates"]
+            T_RULES["Rules Engine gender + date + semester"]
+            T_PROMPTS["AI Prompt Builders per-template prompts"]
+        end
 
         subgraph Repos["Repositories"]
             R_ADM["Admin Repo"]
@@ -68,6 +82,10 @@ graph TB
         MEM["In-Memory Store dev"]
     end
 
+    subgraph External["External Services"]
+        DEEPSEEK["DeepSeek API LLM"]
+    end
+
     UI --> CTX
     CTX --> HOOKS
     HOOKS --> SVC_FE
@@ -76,10 +94,16 @@ graph TB
     R_LOGIN --> CTRL
     R_ME --> MW --> CTRL
     R_LOGOUT --> CTRL
+    R_DOCGEN --> MW
+    R_DOCTPL --> CTRL
 
-    CTRL --> SERV
-    SERV --> Repos
-    SERV --> UTILS
+    CTRL --> Services
+    S_AUTH --> Repos
+    S_DOC --> Templates
+    S_LLM -->|"OpenAI-compatible API"| DEEPSEEK
+    T_PROMPTS --> S_LLM
+    S_FOLIO --> R_DOC
+    Services --> UTILS
     Repos --> Models
     Repos --> MEM
     MEM -.->|"swap for"| DDL
@@ -93,15 +117,19 @@ graph TB
     classDef shared fill:#ede9fe,stroke:#8b5cf6,stroke-width:2px
     classDef storage fill:#fee2e2,stroke:#ef4444,stroke-width:2px
     classDef libs fill:#fce7f3,stroke:#ec4899,stroke-width:2px
+    classDef external fill:#fff7ed,stroke:#f97316,stroke-width:2px
 
     class UI,CTX,HOOKS,SVC_FE client
     class SA,FUI,FA libs
-    class R_LOGIN,R_ME,R_LOGOUT,R_HEALTH api
-    class MW,CTRL,SERV,UTILS backend
+    class R_LOGIN,R_ME,R_LOGOUT,R_HEALTH,R_DOCGEN,R_DOCTPL api
+    class MW,CTRL,UTILS backend
+    class S_AUTH,S_DOC,S_FOLIO,S_LLM backend
+    class T_REG,T_RULES,T_PROMPTS backend
     class R_ADM,R_USR,R_PROF,R_STU,R_CAT,R_ACAD,R_DOC backend
     class M_USR,M_CAT,M_ACAD,M_DOC backend
     class TYPES shared
     class MEM,DDL storage
+    class DEEPSEEK external
 ```
 
 ---
@@ -230,6 +258,8 @@ src/
 │   │   ├── auth/login/route.ts
 │   │   ├── auth/me/route.ts
 │   │   ├── auth/logout/route.ts
+│   │   ├── documents/generate/route.ts
+│   │   ├── documents/templates/route.ts
 │   │   └── health/route.ts
 │   ├── layout.tsx                  # Root layout (AuthProvider + Navbar)
 │   ├── page.tsx                    # Landing page
@@ -241,15 +271,21 @@ src/
 │   ├── controllers/                # Request/response orchestration
 │   ├── models/                     # Row → DTO mappers (user, catalog, academic, document)
 │   ├── repositories/               # Data access layer (7 repo files, 17 tables)
-│   │   ├── admin.repository.ts     # Auth lookups (username/email)
-│   │   ├── user.repository.ts      # Base user CRUD
-│   │   ├── professor.repository.ts # Professor queries
-│   │   ├── student.repository.ts   # Student queries
-│   │   ├── catalog.repository.ts   # Roles, Programs, Cycles, Status (seeded)
-│   │   ├── academic.repository.ts  # Subjects, Groups, Enrollments, Projects
-│   │   └── document.repository.ts  # DocTypes, Formats, Folios
 │   ├── routes/                     # Route constant definitions
-│   ├── services/                   # Business logic (Auth)
+│   ├── services/                   # Business logic (Auth, Document, Folio, LLM)
+│   │   ├── auth.service.ts         # JWT login, token verification
+│   │   ├── document.service.ts     # PDF generator (pdf-lib, section renderers)
+│   │   ├── folio.service.ts        # Sequential folio numbering
+│   │   └── llm.service.ts          # DeepSeek LLM client (OpenAI-compatible)
+│   ├── templates/                  # Document template engine
+│   │   ├── types.ts                # TemplateDefinition, TemplateContext, AiMetadata
+│   │   ├── rules.ts                # Gender/date/semester rules engine
+│   │   ├── prompts.ts              # AI prompt builders (per-template)
+│   │   ├── constancia-inscripcion.ts
+│   │   ├── constancia-reinscripcion.ts
+│   │   ├── constancia-promedio.ts
+│   │   ├── carta-aceptacion.ts
+│   │   └── index.ts                # Template registry
 │   └── utils/                      # JWT, hashing, validation, response helpers
 ├── frontend/                       # Client-side concerns
 │   ├── components/
@@ -261,7 +297,8 @@ src/
 │   ├── utils/                      # cn() classname utility
 │   └── services/                   # API client with Bearer token
 └── shared/                         # Shared types (DTOs, enums)
-    └── types/                      # SafeUser, SafeAdmin, ProgramDTO, SubjectDTO...
+    ├── types/                      # SafeUser, SafeAdmin, ProgramDTO, SubjectDTO...
+    └── constancias/                # Reference PDF scans
 ```
 
 ---
@@ -279,6 +316,8 @@ src/
 | Auth       | JWT via jose + httpOnly cookies + Bearer    |
 | Hashing    | bcryptjs                                    |
 | Validation | zod                                         |
+| PDF        | pdf-lib + @pdf-lib/fontkit                  |
+| AI / LLM   | DeepSeek (OpenAI-compatible via openai SDK) |
 | Utilities  | clsx + tailwind-merge                       |
 | Database   | MySQL (DDL provided, in-memory for dev)     |
 
@@ -303,12 +342,14 @@ Open http://localhost:3000 in your browser.
 
 ## API Endpoints
 
-| Method | Endpoint             | Auth     | Description                      |
-| ------ | -------------------- | -------- | -------------------------------- |
-| POST   | /api/auth/login      | Public   | Admin login (username or email)  |
-| GET    | /api/auth/me         | Bearer   | Get current admin profile        |
-| POST   | /api/auth/logout     | Public   | Clear auth cookie                |
-| GET    | /api/health          | Public   | Health check                     |
+| Method | Endpoint                 | Auth     | Description                                |
+| ------ | ------------------------ | -------- | ------------------------------------------ |
+| POST   | /api/auth/login          | Public   | Admin login (username or email)            |
+| GET    | /api/auth/me             | Bearer   | Get current admin profile                  |
+| POST   | /api/auth/logout         | Public   | Clear auth cookie                          |
+| GET    | /api/health              | Public   | Health check                               |
+| GET    | /api/documents/templates | Bearer   | List available document templates          |
+| POST   | /api/documents/generate  | Bearer   | Generate PDF document (optional AI body)   |
 
 ### Authentication
 
@@ -333,12 +374,15 @@ npm run lint      # ESLint
 
 ## Environment Variables
 
-| Variable              | Description                   | Default                    |
-| --------------------- | ----------------------------- | -------------------------- |
-| JWT_SECRET            | Secret key for JWT signing    | Required                   |
-| JWT_EXPIRATION        | Token expiration time         | 24h                        |
-| NEXT_PUBLIC_API_URL   | Base URL for API calls        | http://localhost:3000      |
-| NODE_ENV              | Environment                   | development                |
+| Variable              | Description                      | Default                    |
+| --------------------- | -------------------------------- | -------------------------- |
+| JWT_SECRET            | Secret key for JWT signing       | Required                   |
+| JWT_EXPIRATION        | Token expiration time            | 24h                        |
+| NEXT_PUBLIC_API_URL   | Base URL for API calls           | http://localhost:3000      |
+| NODE_ENV              | Environment                      | development                |
+| DEEPSEEK_API_KEY      | DeepSeek API key (AI generation) | Optional                   |
+| DEEPSEEK_BASE_URL     | DeepSeek API base URL            | https://api.deepseek.com  |
+| DEEPSEEK_MODEL        | DeepSeek model name              | deepseek-chat              |
 
 ---
 
@@ -351,3 +395,63 @@ npm run lint      # ESLint
 - **Seeded catalogs**: `StatusCatalogRepository` auto-seeds ACTIVO, INSCRITO, GRADUADO, BAJA TEMPORAL, BAJA DEFINITIVA on module load.
 - **Zod validation**: All API inputs are validated with Zod schemas before reaching business logic.
 - **Dual token transport**: httpOnly cookies for browser-based auth + Bearer header for API consumers.
+- **AI-powered document generation**: DeepSeek LLM generates formal institutional Spanish body text. The AI is a phrasing layer — all factual data (names, dates, folios, grades) comes from the database. Structured JSON output with validation, 15s timeout, graceful fallback to hardcoded templates. Response includes full audit metadata (`ai.aiUsed`, `ai.model`, `ai.promptVersion`, `ai.fallbackReason`).
+- **PDF pipeline**: pdf-lib generates PDFs with section-based rendering (header → folio/date → title → body → grades-table → signatures → footer). Templates are TypeScript objects; the rules engine handles gender-aware Spanish.
+
+---
+
+## Document Generation
+
+### Templates
+
+| Template ID                | Name                        | Target  |
+| -------------------------- | --------------------------- | ------- |
+| constancia-inscripcion     | Constancia de Inscripción   | student |
+| constancia-reinscripcion   | Constancia de Reinscripción | student |
+| constancia-promedio        | Constancia de Promedio Global | student |
+| carta-aceptacion           | Carta de Aceptación         | student |
+
+### AI Mode
+
+Pass `"useAI": true` in the generate request to have DeepSeek LLM write the document body text. The AI receives only sanitized data (name, gender, program, semester, date) — no raw DB records.
+
+```json
+{
+  "templateId": "constancia-inscripcion",
+  "studentId": 1,
+  "cycleId": 1,
+  "useAI": true
+}
+```
+
+Response includes audit metadata:
+```json
+{
+  "ai": {
+    "aiRequested": true,
+    "aiUsed": true,
+    "model": "deepseek-chat",
+    "promptVersion": "1.0.0"
+  }
+}
+```
+
+If the AI fails or is not configured, the PDF is still generated using the hardcoded template text:
+```json
+{
+  "ai": {
+    "aiRequested": true,
+    "aiUsed": false,
+    "fallbackReason": "DEEPSEEK_API_KEY not configured"
+  }
+}
+```
+
+---
+
+## Postman Collection
+
+Import `postman/CICATA-API.postman_collection.json` into Postman to test all endpoints.
+
+- **Auto-auth**: The Login request saves the token to a collection variable — all subsequent requests use it automatically.
+- **20 requests**: Health check, 7 auth tests, 12 document generation tests (4 templates × 2 modes + error cases).

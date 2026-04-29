@@ -62,10 +62,15 @@ function wrapText(
 
 // ── Main generator ────────────────────────────────────
 
+export interface GenerateOptions {
+  aiBodyParagraphs?: string[];
+}
+
 export const DocumentService = {
   async generate(
     template: TemplateDefinition,
-    ctx: TemplateContext
+    ctx: TemplateContext,
+    options?: GenerateOptions
   ): Promise<Uint8Array> {
     const doc = await PDFDocument.create();
     const fonts = await loadFonts(doc);
@@ -74,6 +79,17 @@ export const DocumentService = {
     let y = PAGE_HEIGHT - MARGIN_TOP;
 
     const sections = template.buildSections(ctx);
+
+    // If AI-generated body paragraphs are provided, replace the body section content
+    if (options?.aiBodyParagraphs && options.aiBodyParagraphs.length > 0) {
+      const bodyIdx = sections.findIndex((s) => s.type === "body");
+      if (bodyIdx !== -1) {
+        sections[bodyIdx] = {
+          ...sections[bodyIdx],
+          content: options.aiBodyParagraphs.join("\n\n"),
+        };
+      }
+    }
 
     for (const section of sections) {
       if (section.marginTop) y -= section.marginTop;

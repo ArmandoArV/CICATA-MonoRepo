@@ -21,4 +21,4 @@ export function listTemplates(): TemplateDefinition[] {
   return Array.from(templates.values());
 }
 
-export type { TemplateDefinition, TemplateContext, GenerateDocumentRequest, GenerateDocumentResponse } from "./types";
+export type { TemplateDefinition, TemplateContext, GenerateDocumentRequest, GenerateDocumentResponse, AiMetadata } from "./types";

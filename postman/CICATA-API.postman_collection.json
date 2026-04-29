@@ -1,0 +1,494 @@
+{
+  "info": {
+    "name": "CICATA API",
+    "description": "Full API collection for the CICATA Research Platform MonoRepo.\n\nIncludes Auth, Document Generation, and AI-powered document generation endpoints.\n\n**Setup:**\n1. Start the dev server: `npm run dev`\n2. Run the \"Login\" request first — it auto-sets the Bearer token for all subsequent requests.\n3. For AI generation, set DEEPSEEK_API_KEY in .env.local",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Verify the API is running. No auth required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Admin-based authentication. Only admin accounts can log in — there is no self-registration.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.token) {",
+                  "        pm.collectionVariables.set('authToken', json.data.token);",
+                  "        console.log('Token saved to collection variable');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"Admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticate with username or email. On success the token is auto-saved to the `authToken` collection variable.\n\n**Note:** You need to seed an admin account first (in-memory repos start empty)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (with email)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.token) {",
+                  "        pm.collectionVariables.set('authToken', json.data.token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"admin@cicata.ipn.mx\",\n  \"password\": \"Admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login using email instead of username."
+          },
+          "response": []
+        },
+        {
+          "name": "Login — Invalid Credentials",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"wrongpassword\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Expect 401 — Invalid credentials."
+          },
+          "response": []
+        },
+        {
+          "name": "Login — Missing Fields",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usernameOrEmail\": \"\",\n  \"password\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Expect 400 — Zod validation error (empty fields)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Profile (me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Returns the authenticated admin's profile. Requires Bearer token."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile — No Token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Expect 401 — Missing authentication token."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Clears the httpOnly auth cookie. Token in header remains valid until expiry."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "description": "PDF document generation pipeline. All endpoints require Bearer auth (admin only).\n\nSet `useAI: true` to generate body text using DeepSeek LLM instead of hardcoded templates.",
+      "item": [
+        {
+          "name": "List Available Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "templates"]
+            },
+            "description": "Returns all registered document templates with their IDs, names, and targets."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Constancia de Inscripción",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-inscripcion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\",\n    \"signatorySubtitle\": \"Instituto Politécnico Nacional\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate an enrollment certificate PDF (hardcoded template).\n\nReturns `{ pdf: base64, folio, fileName, ai: { aiRequested, aiUsed } }`."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Constancia de Inscripción (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-inscripcion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"useAI\": true,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\",\n    \"signatorySubtitle\": \"Instituto Politécnico Nacional\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate an enrollment certificate with AI-generated body text via DeepSeek LLM.\n\nRequires DEEPSEEK_API_KEY in .env.local. Falls back to hardcoded text if AI fails.\n\nResponse includes `ai.aiUsed`, `ai.model`, `ai.promptVersion`, or `ai.fallbackReason`."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Constancia de Reinscripción",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-reinscripcion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate a re-enrollment certificate."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Constancia de Reinscripción (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-reinscripcion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"useAI\": true,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate a re-enrollment certificate with AI-generated body text."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Constancia de Promedio Global",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-promedio\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\",\n    \"grades\": \"[{\\\"subject\\\":\\\"Matemáticas Avanzadas\\\",\\\"grade\\\":\\\"9.8\\\",\\\"credits\\\":6,\\\"semester\\\":1},{\\\"subject\\\":\\\"Física Cuántica\\\",\\\"grade\\\":\\\"9.5\\\",\\\"credits\\\":6,\\\"semester\\\":1},{\\\"subject\\\":\\\"Bioquímica Molecular\\\",\\\"grade\\\":\\\"9.3\\\",\\\"credits\\\":4,\\\"semester\\\":2},{\\\"subject\\\":\\\"Nanotecnología\\\",\\\"grade\\\":\\\"10.0\\\",\\\"credits\\\":6,\\\"semester\\\":2},{\\\"subject\\\":\\\"Métodos de Investigación\\\",\\\"grade\\\":\\\"9.0\\\",\\\"credits\\\":4,\\\"semester\\\":3}]\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate a global average certificate with grades table.\n\n`grades` is a JSON-encoded array of `{ subject, grade, credits, semester }`."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Constancia de Promedio Global (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-promedio\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"useAI\": true,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\",\n    \"grades\": \"[{\\\"subject\\\":\\\"Matemáticas Avanzadas\\\",\\\"grade\\\":\\\"9.8\\\",\\\"credits\\\":6,\\\"semester\\\":1},{\\\"subject\\\":\\\"Física Cuántica\\\",\\\"grade\\\":\\\"9.5\\\",\\\"credits\\\":6,\\\"semester\\\":1},{\\\"subject\\\":\\\"Bioquímica Molecular\\\",\\\"grade\\\":\\\"9.3\\\",\\\"credits\\\":4,\\\"semester\\\":2},{\\\"subject\\\":\\\"Nanotecnología\\\",\\\"grade\\\":\\\"10.0\\\",\\\"credits\\\":6,\\\"semester\\\":2},{\\\"subject\\\":\\\"Métodos de Investigación\\\",\\\"grade\\\":\\\"9.0\\\",\\\"credits\\\":4,\\\"semester\\\":3}]\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate a global average certificate with AI-generated body text.\n\nThe grades table is still rendered deterministically — only the body prose is AI-generated."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Carta de Aceptación",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"carta-aceptacion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"customFields\": {\n    \"recipient\": \"Dr. Juan Carlos Pérez García\",\n    \"projectName\": \"Síntesis de nanopartículas de plata para aplicaciones biomédicas\",\n    \"originInstitution\": \"Universidad Autónoma del Estado de Morelos\",\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\",\n    \"signatorySubtitle\": \"Instituto Politécnico Nacional\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate an acceptance letter with custom recipient, project, and origin institution."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Carta de Aceptación (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"carta-aceptacion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"useAI\": true,\n  \"customFields\": {\n    \"recipient\": \"Dr. Juan Carlos Pérez García\",\n    \"projectName\": \"Síntesis de nanopartículas de plata para aplicaciones biomédicas\",\n    \"originInstitution\": \"Universidad Autónoma del Estado de Morelos\",\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\",\n    \"signatorySubtitle\": \"Instituto Politécnico Nacional\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Generate an acceptance letter with AI-generated body text."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Invalid Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"nonexistent-template\",\n  \"cycleId\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Expect 404 — Template not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — Missing templateId",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cycleId\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Expect 400 — templateId is required."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — No Auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-inscripcion\",\n  \"studentId\": 1,\n  \"cycleId\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Expect 401 — Document generation requires admin auth."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate — AI Fallback (no API key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateId\": \"constancia-inscripcion\",\n  \"studentId\": 1,\n  \"cycleId\": 1,\n  \"useAI\": true,\n  \"customFields\": {\n    \"signatoryName\": \"DRA. MARÍA ELENA LÓPEZ\",\n    \"signatoryTitle\": \"Directora CICATA Morelos\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "generate"]
+            },
+            "description": "Test AI fallback behavior. If DEEPSEEK_API_KEY is not set, response will show:\n`ai.aiUsed: false` and `ai.fallbackReason: \"DEEPSEEK_API_KEY not configured\"`\n\nThe PDF will still be generated using the hardcoded template text."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

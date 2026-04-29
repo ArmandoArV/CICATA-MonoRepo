@@ -4,9 +4,11 @@ import { NextRequest } from "next/server";
 import { authenticate, isAuthenticated } from "@/backend/middleware";
 import { success, error, serverError } from "@/backend/utils";
 import { getTemplate, listTemplates } from "@/backend/templates";
-import type { GenerateDocumentRequest, TemplateContext } from "@/backend/templates";
+import type { GenerateDocumentRequest, TemplateContext, AiMetadata } from "@/backend/templates";
 import { DocumentService } from "@/backend/services/document.service";
 import { FolioService } from "@/backend/services/folio.service";
+import { LlmService } from "@/backend/services/llm.service";
+import { buildAiRequest } from "@/backend/templates/prompts";
 import {
   StudentRepository,
   ProfessorRepository,
@@ -128,8 +130,35 @@ export const DocumentController = {
         }
       }
 
+      // AI body generation
+      const aiMeta: AiMetadata = {
+        aiRequested: body.useAI === true,
+        aiUsed: false,
+      };
+
+      let aiBodyParagraphs: string[] | undefined;
+
+      if (body.useAI) {
+        const aiRequest = buildAiRequest(body.templateId, ctx);
+        if (!aiRequest) {
+          aiMeta.fallbackReason = `No AI prompt defined for template "${body.templateId}"`;
+        } else {
+          const aiResult = await LlmService.generateBody(aiRequest);
+          if (aiResult.aiUsed) {
+            aiBodyParagraphs = aiResult.paragraphs;
+            aiMeta.aiUsed = true;
+            aiMeta.model = aiResult.model;
+            aiMeta.promptVersion = aiResult.promptVersion;
+          } else {
+            aiMeta.fallbackReason = aiResult.fallbackReason;
+          }
+        }
+      }
+
       // Generate PDF
-      const pdfBytes = await DocumentService.generate(template, ctx);
+      const pdfBytes = await DocumentService.generate(template, ctx, {
+        aiBodyParagraphs,
+      });
       const pdfBase64 = Buffer.from(pdfBytes).toString("base64");
 
       const studentName = ctx.student
@@ -156,6 +185,7 @@ export const DocumentController = {
         pdf: pdfBase64,
         folio: fullFolio,
         fileName,
+        ai: aiMeta,
       });
     } catch (err) {
       console.error("Document generation error:", err);
