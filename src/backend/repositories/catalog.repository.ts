@@ -1,5 +1,6 @@
 import "server-only";
 
+import { query, queryOne, execute } from "@/backend/database/pool";
 import type {
   UserRoleRow,
   ProgramRow,
@@ -9,124 +10,83 @@ import type {
 
 // ── User Roles ────────────────────────────────────────
 
-const roles = new Map<number, UserRoleRow>();
-let nextRoleId = 1;
-
 export const UserRoleRepository = {
   async findById(id: number): Promise<UserRoleRow | null> {
-    return roles.get(id) ?? null;
+    return queryOne<UserRoleRow>("SELECT * FROM userRoles WHERE idRole = ?", [id]);
   },
 
   async findByName(role: string): Promise<UserRoleRow | null> {
-    for (const r of roles.values()) {
-      if (r.role === role) return r;
-    }
-    return null;
+    return queryOne<UserRoleRow>("SELECT * FROM userRoles WHERE role = ?", [role]);
   },
 
   async create(role: string): Promise<UserRoleRow> {
-    const row: UserRoleRow = { idRole: nextRoleId++, role };
-    roles.set(row.idRole, row);
-    return row;
+    const result = await execute("INSERT INTO userRoles (role) VALUES (?)", [role]);
+    return { idRole: result.insertId, role };
   },
 
   async findAll(): Promise<UserRoleRow[]> {
-    return Array.from(roles.values());
+    return query<UserRoleRow>("SELECT * FROM userRoles");
   },
 };
 
 // ── Programs ──────────────────────────────────────────
 
-const programs = new Map<number, ProgramRow>();
-let nextProgramId = 1;
-
 export const ProgramRepository = {
   async findById(id: number): Promise<ProgramRow | null> {
-    return programs.get(id) ?? null;
+    return queryOne<ProgramRow>("SELECT * FROM programs WHERE idProgram = ?", [id]);
   },
 
   async findAll(includeDeleted = false): Promise<ProgramRow[]> {
-    const all = Array.from(programs.values());
-    return includeDeleted ? all : all.filter((p) => !p.isDeleted);
+    if (includeDeleted) return query<ProgramRow>("SELECT * FROM programs");
+    return query<ProgramRow>("SELECT * FROM programs WHERE isDeleted = 0");
   },
 
-  async create(data: {
-    name: string;
-    isSocialService: boolean;
-  }): Promise<ProgramRow> {
-    const row: ProgramRow = {
-      idProgram: nextProgramId++,
-      name: data.name,
-      isSocialService: data.isSocialService,
-      isDeleted: false,
-    };
-    programs.set(row.idProgram, row);
-    return row;
+  async create(data: { name: string; isSocialService: boolean }): Promise<ProgramRow> {
+    const result = await execute(
+      "INSERT INTO programs (name, isSocialService) VALUES (?, ?)",
+      [data.name, data.isSocialService ? 1 : 0]
+    );
+    return { idProgram: result.insertId, name: data.name, isSocialService: data.isSocialService, isDeleted: false };
   },
 
   async softDelete(id: number): Promise<boolean> {
-    const row = programs.get(id);
-    if (!row) return false;
-    row.isDeleted = true;
-    return true;
+    const result = await execute("UPDATE programs SET isDeleted = 1 WHERE idProgram = ?", [id]);
+    return result.affectedRows > 0;
   },
 };
 
 // ── School Cycles ─────────────────────────────────────
 
-const cycles = new Map<number, SchoolCycleRow>();
-let nextCycleId = 1;
-
 export const SchoolCycleRepository = {
   async findById(id: number): Promise<SchoolCycleRow | null> {
-    return cycles.get(id) ?? null;
+    return queryOne<SchoolCycleRow>("SELECT * FROM schoolCycles WHERE idCycle = ?", [id]);
   },
 
   async findAll(): Promise<SchoolCycleRow[]> {
-    return Array.from(cycles.values());
+    return query<SchoolCycleRow>("SELECT * FROM schoolCycles");
   },
 
   async create(data: Omit<SchoolCycleRow, "idCycle">): Promise<SchoolCycleRow> {
-    const row: SchoolCycleRow = { idCycle: nextCycleId++, ...data };
-    cycles.set(row.idCycle, row);
-    return row;
+    const result = await execute(
+      "INSERT INTO schoolCycles (cycle, description, startDate, endDate) VALUES (?, ?, ?, ?)",
+      [data.cycle, data.description, data.startDate, data.endDate]
+    );
+    return { idCycle: result.insertId, ...data };
   },
 };
 
 // ── Status Catalog ────────────────────────────────────
 
-const statuses = new Map<number, StatusCatalogRow>();
-let nextStatusId = 1;
-
-function seedStatuses() {
-  const seeds = [
-    "ACTIVO",
-    "INSCRITO",
-    "GRADUADO",
-    "BAJA TEMPORAL",
-    "BAJA DEFINITIVA",
-  ];
-  for (const type of seeds) {
-    const row: StatusCatalogRow = { idStatus: nextStatusId++, type };
-    statuses.set(row.idStatus, row);
-  }
-}
-
-seedStatuses();
-
 export const StatusCatalogRepository = {
   async findById(id: number): Promise<StatusCatalogRow | null> {
-    return statuses.get(id) ?? null;
+    return queryOne<StatusCatalogRow>("SELECT * FROM statusCatalog WHERE idStatus = ?", [id]);
   },
 
   async findByType(type: string): Promise<StatusCatalogRow | null> {
-    for (const s of statuses.values()) {
-      if (s.type === type) return s;
-    }
-    return null;
+    return queryOne<StatusCatalogRow>("SELECT * FROM statusCatalog WHERE type = ?", [type]);
   },
 
   async findAll(): Promise<StatusCatalogRow[]> {
-    return Array.from(statuses.values());
+    return query<StatusCatalogRow>("SELECT * FROM statusCatalog");
   },
 };

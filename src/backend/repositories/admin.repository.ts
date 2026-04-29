@@ -1,82 +1,62 @@
 import "server-only";
 
+import { query, queryOne, execute } from "@/backend/database/pool";
 import type { AdminRow } from "@/backend/types";
-
-const admins = new Map<number, AdminRow>();
-let nextId = 1;
 
 export const AdminRepository = {
   async findById(id: number): Promise<AdminRow | null> {
-    return admins.get(id) ?? null;
+    return queryOne<AdminRow>("SELECT * FROM admin WHERE idAdmin = ?", [id]);
   },
 
   async findByUserId(userId: number): Promise<AdminRow | null> {
-    for (const admin of admins.values()) {
-      if (admin.userId === userId) return admin;
-    }
-    return null;
+    return queryOne<AdminRow>("SELECT * FROM admin WHERE userId = ?", [userId]);
   },
 
   async findByEmail(email: string): Promise<AdminRow | null> {
-    for (const admin of admins.values()) {
-      if (admin.email === email) return admin;
-    }
-    return null;
+    return queryOne<AdminRow>("SELECT * FROM admin WHERE email = ?", [email]);
   },
 
   async findByUsername(username: string): Promise<AdminRow | null> {
-    for (const admin of admins.values()) {
-      if (admin.username === username) return admin;
-    }
-    return null;
+    return queryOne<AdminRow>("SELECT * FROM admin WHERE username = ?", [username]);
   },
 
   async findByUsernameOrEmail(identifier: string): Promise<AdminRow | null> {
-    for (const admin of admins.values()) {
-      if (admin.username === identifier || admin.email === identifier) {
-        return admin;
-      }
-    }
-    return null;
+    return queryOne<AdminRow>(
+      "SELECT * FROM admin WHERE username = ? OR email = ?",
+      [identifier, identifier]
+    );
   },
 
   async existsByEmail(email: string): Promise<boolean> {
-    for (const admin of admins.values()) {
-      if (admin.email === email) return true;
-    }
-    return false;
+    const row = await queryOne<{ c: number }>(
+      "SELECT COUNT(*) AS c FROM admin WHERE email = ?", [email]
+    );
+    return (row?.c ?? 0) > 0;
   },
 
   async existsByUsername(username: string): Promise<boolean> {
-    for (const admin of admins.values()) {
-      if (admin.username === username) return true;
-    }
-    return false;
+    const row = await queryOne<{ c: number }>(
+      "SELECT COUNT(*) AS c FROM admin WHERE username = ?", [username]
+    );
+    return (row?.c ?? 0) > 0;
   },
 
   async existsByUserId(userId: number): Promise<boolean> {
-    for (const admin of admins.values()) {
-      if (admin.userId === userId) return true;
-    }
-    return false;
+    const row = await queryOne<{ c: number }>(
+      "SELECT COUNT(*) AS c FROM admin WHERE userId = ?", [userId]
+    );
+    return (row?.c ?? 0) > 0;
   },
 
   async create(data: Omit<AdminRow, "idAdmin">): Promise<AdminRow> {
-    if (await AdminRepository.existsByEmail(data.email)) {
-      throw new Error("Email already registered");
-    }
-    if (await AdminRepository.existsByUsername(data.username)) {
-      throw new Error("Username already taken");
-    }
-    if (await AdminRepository.existsByUserId(data.userId)) {
-      throw new Error("User already has an admin account");
-    }
-    const row: AdminRow = { idAdmin: nextId++, ...data };
-    admins.set(row.idAdmin, row);
-    return row;
+    const result = await execute(
+      "INSERT INTO admin (userId, username, password, email) VALUES (?, ?, ?, ?)",
+      [data.userId, data.username, data.password, data.email]
+    );
+    return { idAdmin: result.insertId, ...data };
   },
 
   async findAll(): Promise<AdminRow[]> {
-    return Array.from(admins.values());
+    return query<AdminRow>("SELECT * FROM admin");
   },
 };

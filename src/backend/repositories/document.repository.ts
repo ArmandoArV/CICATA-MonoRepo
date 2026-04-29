@@ -1,5 +1,6 @@
 import "server-only";
 
+import { query, queryOne, execute } from "@/backend/database/pool";
 import type {
   DocTypeRow,
   DocFormatRow,
@@ -8,108 +9,73 @@ import type {
 
 // ── Doc Types ─────────────────────────────────────────
 
-const docTypes = new Map<number, DocTypeRow>();
-let nextDocTypeId = 1;
-
 export const DocTypeRepository = {
   async findById(id: number): Promise<DocTypeRow | null> {
-    return docTypes.get(id) ?? null;
+    return queryOne<DocTypeRow>("SELECT * FROM docTypes WHERE idDocType = ?", [id]);
   },
 
   async findAll(): Promise<DocTypeRow[]> {
-    return Array.from(docTypes.values());
+    return query<DocTypeRow>("SELECT * FROM docTypes");
   },
 
-  async create(
-    data: Omit<DocTypeRow, "idDocType">
-  ): Promise<DocTypeRow> {
-    const row: DocTypeRow = { idDocType: nextDocTypeId++, ...data };
-    docTypes.set(row.idDocType, row);
-    return row;
+  async create(data: Omit<DocTypeRow, "idDocType">): Promise<DocTypeRow> {
+    const result = await execute(
+      "INSERT INTO docTypes (name, target) VALUES (?, ?)",
+      [data.name, data.target]
+    );
+    return { idDocType: result.insertId, ...data };
   },
 };
 
 // ── Doc Formats ───────────────────────────────────────
 
-const docFormats = new Map<number, DocFormatRow>();
-let nextFormatId = 1;
-
 export const DocFormatRepository = {
   async findById(id: number): Promise<DocFormatRow | null> {
-    return docFormats.get(id) ?? null;
+    return queryOne<DocFormatRow>("SELECT * FROM docFormats WHERE idFormat = ?", [id]);
   },
 
   async findByDocTypeId(docTypeId: number): Promise<DocFormatRow[]> {
-    return Array.from(docFormats.values()).filter(
-      (f) => f.docTypeId === docTypeId
-    );
+    return query<DocFormatRow>("SELECT * FROM docFormats WHERE docTypeId = ?", [docTypeId]);
   },
 
-  async create(
-    data: Omit<DocFormatRow, "idFormat" | "uploadedAt">
-  ): Promise<DocFormatRow> {
-    for (const f of docFormats.values()) {
-      if (f.docTypeId === data.docTypeId && f.year === data.year) {
-        throw new Error("Format already exists for this doc type and year");
-      }
-    }
-    const row: DocFormatRow = {
-      idFormat: nextFormatId++,
-      uploadedAt: new Date(),
-      ...data,
-    };
-    docFormats.set(row.idFormat, row);
-    return row;
+  async create(data: Omit<DocFormatRow, "idFormat" | "uploadedAt">): Promise<DocFormatRow> {
+    const result = await execute(
+      "INSERT INTO docFormats (docTypeId, year, mimeType, format) VALUES (?, ?, ?, ?)",
+      [data.docTypeId, data.year, data.mimeType, data.format]
+    );
+    return { idFormat: result.insertId, uploadedAt: new Date(), ...data };
   },
 };
 
 // ── Doc Folios ────────────────────────────────────────
 
-const docFolios = new Map<number, DocFolioRow>();
-let nextFolioId = 1;
-
 export const DocFolioRepository = {
   async findById(id: number): Promise<DocFolioRow | null> {
-    return docFolios.get(id) ?? null;
+    return queryOne<DocFolioRow>("SELECT * FROM docFolios WHERE idFolio = ?", [id]);
   },
 
   async findByFullFolio(fullFolio: string): Promise<DocFolioRow | null> {
-    for (const f of docFolios.values()) {
-      if (f.fullFolio === fullFolio) return f;
-    }
-    return null;
+    return queryOne<DocFolioRow>("SELECT * FROM docFolios WHERE fullFolio = ?", [fullFolio]);
   },
 
   async findByProfessorId(professorId: number): Promise<DocFolioRow[]> {
-    return Array.from(docFolios.values()).filter(
-      (f) => f.professorId === professorId
-    );
+    return query<DocFolioRow>("SELECT * FROM docFolios WHERE professorId = ?", [professorId]);
   },
 
   async findByStudentId(studentId: number): Promise<DocFolioRow[]> {
-    return Array.from(docFolios.values()).filter(
-      (f) => f.studentId === studentId
-    );
+    return query<DocFolioRow>("SELECT * FROM docFolios WHERE studentId = ?", [studentId]);
   },
 
-  async create(
-    data: Omit<DocFolioRow, "idFolio" | "issuedAt">
-  ): Promise<DocFolioRow> {
-    for (const f of docFolios.values()) {
-      if (f.fullFolio === data.fullFolio) {
-        throw new Error("Folio already exists");
-      }
-    }
-    const row: DocFolioRow = {
-      idFolio: nextFolioId++,
-      issuedAt: new Date(),
-      ...data,
-    };
-    docFolios.set(row.idFolio, row);
-    return row;
+  async create(data: Omit<DocFolioRow, "idFolio" | "issuedAt">): Promise<DocFolioRow> {
+    const result = await execute(
+      `INSERT INTO docFolios (professorId, docTypeId, studentId, cycleId, folioNumber, fullFolio, signatoryTitle, elaboratedBy, reviewedBy, ccList)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [data.professorId, data.docTypeId, data.studentId, data.cycleId, data.folioNumber, data.fullFolio, data.signatoryTitle, data.elaboratedBy, data.reviewedBy, data.ccList]
+    );
+    return { idFolio: result.insertId, issuedAt: new Date(), ...data };
   },
 
   async findAll(): Promise<DocFolioRow[]> {
-    return Array.from(docFolios.values());
+    return query<DocFolioRow>("SELECT * FROM docFolios");
   },
 };
