@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/frontend/hooks";
 import { Button } from "@/frontend/components/ui";
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
+  const pathname = usePathname();
+
+  if (pathname === "/login") return null;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md">
