@@ -158,28 +158,28 @@ export default function EstudiantesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">
             Gestión de Estudiantes
           </h1>
-          <p className="mt-1 text-gray-500">
+          <p className="mt-1 text-sm text-gray-500 lg:text-base">
             Administra los estudiantes registrados.
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039]">
+        <button className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5">
           <FontAwesomeIcon icon={faPlus} />
-          Inscribir
+          <span className="hidden sm:inline">Inscribir</span>
         </button>
       </div>
 
       {/* Action bar (shows when items selected) */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-xl bg-rose-50 px-5 py-3">
-          <span className="rounded-lg bg-[#7A154A] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white">
+        <div className="flex flex-col gap-3 rounded-xl bg-rose-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <span className="w-fit rounded-lg bg-[#7A154A] px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-white">
             {selected.size} seleccionado{selected.size > 1 ? "s" : ""}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]">
               <FontAwesomeIcon icon={faEye} />
               Visualizar
@@ -196,14 +196,71 @@ export default function EstudiantesPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7A154A] border-t-transparent" />
+      {/* Content */}
+      {loading ? (
+        <div className="flex h-64 items-center justify-center rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7A154A] border-t-transparent" />
+        </div>
+      ) : students.length === 0 ? (
+        <div className="flex h-64 items-center justify-center rounded-xl border border-gray-100 bg-white shadow-sm">
+          <p className="text-gray-400">No hay estudiantes registrados.</p>
+        </div>
+      ) : (
+        <>
+          {/* ── Mobile: Card layout ── */}
+          <div className="space-y-3 lg:hidden">
+            {/* Select all */}
+            <label className="flex items-center gap-2 px-1 text-sm text-gray-500">
+              <input
+                type="checkbox"
+                checked={students.length > 0 && selected.size === students.length}
+                onChange={toggleAll}
+                className="h-4 w-4 rounded border-gray-300 accent-[#7A154A]"
+              />
+              Seleccionar todos
+            </label>
+
+            {students.map((s) => (
+              <div
+                key={s.id}
+                className={`rounded-xl border bg-white p-4 shadow-sm transition ${
+                  selected.has(s.id)
+                    ? "border-[#7A154A]/30 bg-rose-50/40"
+                    : "border-gray-100"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(s.id)}
+                    onChange={() => toggleSelect(s.id)}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#7A154A]"
+                  />
+                  <Avatar initials={s.initials} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-gray-900">
+                        {s.name} {s.lastName}
+                      </p>
+                      <StatusBadge status={s.statusType} />
+                    </div>
+                    <p className="mt-0.5 font-mono text-sm text-gray-500">
+                      {s.registration}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-gray-500">{s.programName}</span>
+                      <span className="rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
+                        {s.cycleName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <>
+
+          {/* ── Desktop: Table layout ── */}
+          <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:block">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
@@ -236,113 +293,102 @@ export default function EstudiantesPage() {
                 </tr>
               </thead>
               <tbody>
-                {students.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-12 text-center text-gray-400"
-                    >
-                      No hay estudiantes registrados.
+                {students.map((s) => (
+                  <tr
+                    key={s.id}
+                    className={`border-b border-gray-50 transition ${
+                      selected.has(s.id)
+                        ? "bg-rose-50/60"
+                        : "hover:bg-gray-50/50"
+                    }`}
+                  >
+                    <td className="py-4 pl-5 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(s.id)}
+                        onChange={() => toggleSelect(s.id)}
+                        className="h-4 w-4 rounded border-gray-300 accent-[#7A154A]"
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar initials={s.initials} />
+                        <span className="font-medium text-gray-900">
+                          {s.name} {s.lastName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 font-mono text-gray-600">
+                      {s.registration}
+                    </td>
+                    <td className="px-4 py-4 text-gray-600">
+                      {s.programName}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
+                        {s.cycleName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusBadge status={s.statusType} />
                     </td>
                   </tr>
-                ) : (
-                  students.map((s) => (
-                    <tr
-                      key={s.id}
-                      className={`border-b border-gray-50 transition ${
-                        selected.has(s.id)
-                          ? "bg-rose-50/60"
-                          : "hover:bg-gray-50/50"
-                      }`}
-                    >
-                      <td className="py-4 pl-5 pr-2">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(s.id)}
-                          onChange={() => toggleSelect(s.id)}
-                          className="h-4 w-4 rounded border-gray-300 accent-[#7A154A]"
-                        />
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar initials={s.initials} />
-                          <span className="font-medium text-gray-900">
-                            {s.name} {s.lastName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 font-mono text-gray-600">
-                        {s.registration}
-                      </td>
-                      <td className="px-4 py-4 text-gray-600">
-                        {s.programName}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
-                          {s.cycleName}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge status={s.statusType} />
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
+          </div>
 
-            {/* Pagination */}
-            {meta.total > 0 && (
-              <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4">
-                <span className="text-sm text-gray-500">
-                  Mostrando {startItem}-{endItem} de {meta.total} estudiantes
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => goToPage(meta.page - 1)}
-                    disabled={meta.page <= 1}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30"
-                  >
-                    <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
-                  </button>
-                  {pageNumbers().map((p, i) =>
-                    p === "..." ? (
-                      <span
-                        key={`ellipsis-${i}`}
-                        className="flex h-8 w-8 items-center justify-center text-sm text-gray-400"
-                      >
-                        …
-                      </span>
-                    ) : (
-                      <button
-                        key={p}
-                        onClick={() => goToPage(p)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition ${
-                          p === meta.page
-                            ? "bg-[#7A154A] text-white shadow-sm"
-                            : "text-gray-600 hover:bg-gray-100"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    )
-                  )}
-                  <button
-                    onClick={() => goToPage(meta.page + 1)}
-                    disabled={meta.page >= meta.totalPages}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30"
-                  >
-                    <FontAwesomeIcon
-                      icon={faChevronRight}
-                      className="text-xs"
-                    />
-                  </button>
-                </div>
+          {/* Pagination */}
+          {meta.total > 0 && (
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+              <span className="text-sm text-gray-500">
+                Mostrando {startItem}-{endItem} de {meta.total} estudiantes
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => goToPage(meta.page - 1)}
+                  disabled={meta.page <= 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30"
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
+                </button>
+                {pageNumbers().map((p, i) =>
+                  p === "..." ? (
+                    <span
+                      key={`ellipsis-${i}`}
+                      className="flex h-8 w-8 items-center justify-center text-sm text-gray-400"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => goToPage(p)}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition ${
+                        p === meta.page
+                          ? "bg-[#7A154A] text-white shadow-sm"
+                          : "text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => goToPage(meta.page + 1)}
+                  disabled={meta.page >= meta.totalPages}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30"
+                >
+                  <FontAwesomeIcon
+                    icon={faChevronRight}
+                    className="text-xs"
+                  />
+                </button>
               </div>
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
