@@ -22,7 +22,7 @@ export const StatsService = {
     const [profCount, studentCount, groupCount, docCount] = await Promise.all([
       queryOne<{ c: number }>("SELECT COUNT(*) AS c FROM professors"),
       queryOne<{ c: number }>("SELECT COUNT(*) AS c FROM students"),
-      queryOne<{ c: number }>("SELECT COUNT(*) AS c FROM classGroups"),
+      queryOne<{ c: number }>("SELECT COUNT(*) AS c FROM studyGroups"),
       queryOne<{ c: number }>("SELECT COUNT(*) AS c FROM docFolios"),
     ]);
 
