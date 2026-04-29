@@ -232,6 +232,25 @@ export interface ProfessorTableRow {
   statusType: string;
 }
 
+export interface SubjectTableRow {
+  id: number;
+  name: string;
+  subjectKey: string;
+  credits: number;
+  semester: number;
+}
+
+export interface GroupTableRow {
+  id: number;
+  groupKey: string;
+  subjectName: string;
+  professorName: string;
+  campus: string;
+  place: string;
+  schedule: string | null;
+  cycleName: string;
+}
+
 // ── Generic API wrappers ──────────────────────────────
 
 export interface ApiResponse<T = unknown> {
