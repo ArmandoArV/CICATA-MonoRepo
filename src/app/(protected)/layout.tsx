@@ -17,8 +17,8 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7A154A] border-t-transparent" />
       </div>
     );
   }
@@ -26,11 +26,9 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex">
+    <div className="flex min-h-screen">
       <Sidebar />
-      <div className="ml-64 min-h-[calc(100vh-4rem)] flex-1 p-6 lg:p-8">
-        {children}
-      </div>
+      <main className="ml-64 flex-1 bg-gray-50 p-8">{children}</main>
     </div>
   );
 }

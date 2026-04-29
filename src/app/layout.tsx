@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/frontend/contexts";
-import { Navbar } from "@/frontend/components/layouts";
+import { FluentWrapper } from "@/frontend/components/layouts";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CICATA — Research Platform",
+  title: "MiCicata — Gestión Académica",
   description:
     "Centro de Investigación en Ciencia Aplicada y Tecnología Avanzada",
 };
@@ -27,14 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50">
-        <AuthProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-        </AuthProvider>
+      <body className="min-h-full bg-gray-50">
+        <FluentWrapper>
+          <AuthProvider>{children}</AuthProvider>
+        </FluentWrapper>
       </body>
     </html>
   );
