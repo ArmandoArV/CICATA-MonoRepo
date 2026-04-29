@@ -1,0 +1,29 @@
+meta {
+  name: Constancia Inscripcion (AI)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/documents/generate
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "templateId": "constancia-inscripcion",
+    "studentId": 1,
+    "cycleId": 1,
+    "useAI": true,
+    "customFields": {
+      "signatoryName": "DRA. MARÍA ELENA LÓPEZ",
+      "signatoryTitle": "Directora CICATA Morelos",
+      "signatorySubtitle": "Instituto Politécnico Nacional"
+    }
+  }
+}

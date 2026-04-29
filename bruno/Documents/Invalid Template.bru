@@ -1,0 +1,22 @@
+meta {
+  name: Invalid Template
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/documents/generate
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "templateId": "nonexistent-template",
+    "cycleId": 1
+  }
+}
