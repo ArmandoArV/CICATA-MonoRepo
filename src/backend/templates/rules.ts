@@ -3,13 +3,32 @@ import "server-only";
 import { Gender } from "@/shared/types";
 
 const MONTHS = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
 ];
 
 const ORDINALS = [
-  "", "primer", "segundo", "tercer", "cuarto", "quinto",
-  "sexto", "séptimo", "octavo", "noveno", "décimo",
+  "",
+  "primer",
+  "segundo",
+  "tercer",
+  "cuarto",
+  "quinto",
+  "sexto",
+  "séptimo",
+  "octavo",
+  "noveno",
+  "décimo",
 ];
 
 /**
@@ -19,7 +38,7 @@ export function formatDateSpanish(date: Date): string {
   const day = date.getDate();
   const month = MONTHS[date.getMonth()];
   const year = date.getFullYear();
-  return `${day} de ${month} de ${year}`;
+  return `${day} de ${month} del ${year}`;
 }
 
 /**
@@ -38,13 +57,25 @@ export function semesterText(n: number): string {
  */
 export function genderize(
   gender: Gender,
-  template: "article" | "student" | "enrolled" | "accepted"
+  template: "article" | "student" | "enrolled" | "accepted",
 ): string {
   const map: Record<string, Record<Gender, string>> = {
     article: { [Gender.M]: "el", [Gender.F]: "la", [Gender.X]: "el/la" },
-    student: { [Gender.M]: "el alumno", [Gender.F]: "la alumna", [Gender.X]: "el/la alumno(a)" },
-    enrolled: { [Gender.M]: "inscrito", [Gender.F]: "inscrita", [Gender.X]: "inscrito(a)" },
-    accepted: { [Gender.M]: "aceptado", [Gender.F]: "aceptada", [Gender.X]: "aceptado(a)" },
+    student: {
+      [Gender.M]: "el alumno",
+      [Gender.F]: "la alumna",
+      [Gender.X]: "el/la alumno(a)",
+    },
+    enrolled: {
+      [Gender.M]: "inscrito",
+      [Gender.F]: "inscrita",
+      [Gender.X]: "inscrito(a)",
+    },
+    accepted: {
+      [Gender.M]: "aceptado",
+      [Gender.F]: "aceptada",
+      [Gender.X]: "aceptado(a)",
+    },
   };
   return map[template]?.[gender] ?? template;
 }
@@ -76,7 +107,5 @@ export function fullName(name: string, lastName: string): string {
  * Capitalize first letter of each word
  */
 export function titleCase(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+  return str.toLowerCase().replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
 }
