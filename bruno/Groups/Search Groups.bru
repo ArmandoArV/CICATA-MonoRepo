@@ -1,0 +1,15 @@
+meta {
+  name: Search Groups
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/groups?page=1&limit=10&search=MAT
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}

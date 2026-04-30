@@ -1,5 +1,7 @@
 import "server-only";
 
+import fs from "fs";
+import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import type {
   TemplateContext,
@@ -7,8 +9,11 @@ import type {
   TemplateDefinition,
   GradeEntry,
   TextStyle,
+  ImageSection,
+  AnyTemplateSection,
 } from "@/backend/templates/types";
 import { formatDateSpanish } from "@/backend/templates/rules";
+import { Logger } from "@/backend/utils";
 
 // ── Page constants ────────────────────────────────────
 
@@ -84,8 +89,9 @@ export const DocumentService = {
     if (options?.aiBodyParagraphs && options.aiBodyParagraphs.length > 0) {
       const bodyIdx = sections.findIndex((s) => s.type === "body");
       if (bodyIdx !== -1) {
+        const bodySection = sections[bodyIdx] as TemplateSection;
         sections[bodyIdx] = {
-          ...sections[bodyIdx],
+          ...bodySection,
           content: options.aiBodyParagraphs.join("\n\n"),
         };
       }
@@ -94,18 +100,26 @@ export const DocumentService = {
     for (const section of sections) {
       if (section.marginTop) y -= section.marginTop;
 
-      switch (section.type) {
+      // Handle image sections
+      if (section.type === "image") {
+        y = await drawImage(doc, page, section as ImageSection, y);
+        continue;
+      }
+
+      const textSection = section as TemplateSection;
+
+      switch (textSection.type) {
         case "header":
-          y = drawHeader(page, fonts, section, y);
+          y = drawHeader(page, fonts, textSection, y);
           break;
         case "folio-date":
           y = drawFolioDate(page, fonts, ctx, y);
           break;
         case "title":
-          y = drawTitle(page, fonts, section, y);
+          y = drawTitle(page, fonts, textSection, y);
           break;
         case "body":
-          y = drawBody(page, fonts, section, ctx, y);
+          y = drawBody(page, fonts, textSection, ctx, y);
           break;
         case "grades-table":
           y = drawGradesTable(page, fonts, ctx.grades ?? [], y);
@@ -114,11 +128,11 @@ export const DocumentService = {
           y = drawSignatures(page, fonts, ctx, y);
           break;
         case "footer":
-          drawFooter(page, fonts, section);
+          drawFooter(page, fonts, textSection);
           break;
       }
 
-      if (y < MARGIN_BOTTOM + 60 && section.type !== "footer") {
+      if (y < MARGIN_BOTTOM + 60 && textSection.type !== "footer") {
         break;
       }
     }
@@ -265,8 +279,27 @@ function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: 
   const font = fonts["sans"];
   const nameSize = 10;
   const titleSize = 8;
+  const lemaSize = 9;
 
-  y -= 40;
+  // IPN lema per identity manual (before signature)
+  const lemaPrefix = "A T E N T A M E N T E";
+  const lema = '"La Técnica al Servicio de la Patria"';
+
+  y -= 20;
+  const prefixW = font.widthOfTextAtSize(lemaPrefix, lemaSize);
+  page.drawText(lemaPrefix, {
+    x: MARGIN_LEFT + (CONTENT_WIDTH - prefixW) / 2, y,
+    size: lemaSize, font, color: rgb(0, 0, 0),
+  });
+
+  y -= lemaSize + 6;
+  const lemaW = font.widthOfTextAtSize(lema, lemaSize);
+  page.drawText(lema, {
+    x: MARGIN_LEFT + (CONTENT_WIDTH - lemaW) / 2, y,
+    size: lemaSize, font, color: rgb(0, 0, 0),
+  });
+
+  y -= 30;
 
   for (const sig of ctx.signatures) {
     const lineWidth = 200;
@@ -304,6 +337,50 @@ function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: 
   }
 
   return y;
+}
+
+async function drawImage(
+  doc: PDFDocument,
+  page: PDFPage,
+  section: ImageSection,
+  y: number
+): Promise<number> {
+  const filePath = section.content;
+
+  if (!fs.existsSync(filePath)) {
+    Logger.warn("PDF", `Image not found, skipping: ${filePath}`);
+    return y;
+  }
+
+  const bytes = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+
+  const image =
+    ext === ".jpg" || ext === ".jpeg"
+      ? await doc.embedJpg(bytes)
+      : await doc.embedPng(bytes);
+
+  const { width, height } = section.style;
+
+  let x: number;
+  if (section.style.x !== undefined) {
+    x = section.style.x;
+  } else if (section.style.align === "center") {
+    x = MARGIN_LEFT + (CONTENT_WIDTH - width) / 2;
+  } else if (section.style.align === "right") {
+    x = PAGE_WIDTH - MARGIN_RIGHT - width;
+  } else {
+    x = MARGIN_LEFT;
+  }
+
+  if (section.style.pageBottom) {
+    page.drawImage(image, { x, y: 10, width, height });
+    return y;
+  }
+
+  page.drawImage(image, { x, y: y - height, width, height });
+
+  return y - height;
 }
 
 function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection): void {

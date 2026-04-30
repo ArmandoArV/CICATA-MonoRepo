@@ -37,6 +37,29 @@ export interface TemplateSection {
   marginTop?: number;
 }
 
+// ── Image sections ────────────────────────────────────
+
+export interface ImageStyle {
+  width: number;
+  height: number;
+  align?: "left" | "center" | "right";
+  /** Absolute x position in points (overrides align) */
+  x?: number;
+  /** Anchor image to the page bottom (absolute position, ignores flow) */
+  pageBottom?: boolean;
+}
+
+export interface ImageSection {
+  type: "image";
+  /** Absolute file path to the image (png/jpg) */
+  content: string;
+  style: ImageStyle;
+  marginTop?: number;
+}
+
+/** Union of all renderable section types */
+export type AnyTemplateSection = TemplateSection | ImageSection;
+
 export interface SignatureBlock {
   name: string;
   title: string;
@@ -72,7 +95,7 @@ export interface TemplateDefinition {
   name: string;
   docTypeId: number;
   target: "student" | "professor";
-  buildSections: (ctx: TemplateContext) => TemplateSection[];
+  buildSections: (ctx: TemplateContext) => AnyTemplateSection[];
 }
 
 // ── AI metadata ───────────────────────────────────────

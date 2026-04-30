@@ -1,0 +1,15 @@
+meta {
+  name: Search Subjects
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/subjects?page=1&limit=10&search=Matemat
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
