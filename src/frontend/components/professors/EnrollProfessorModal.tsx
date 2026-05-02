@@ -6,16 +6,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faUser,
   faIdCard,
-  faFingerprint,
-  faCalendarDays,
-  faUserTie,
+  faHashtag,
+  faClock,
   faGraduationCap,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { Modal, AnimateIn } from "./Modal";
+import { Modal, AnimateIn } from "@/frontend/components/students/Modal";
 import type { ProgramDTO } from "@/shared/types";
 
-interface EnrollStudentModalProps {
+interface EnrollProfessorModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -40,42 +39,36 @@ function IconInput({
   );
 }
 
-export function EnrollStudentModal({
+export function EnrollProfessorModal({
   open,
   onClose,
   onSuccess,
-}: EnrollStudentModalProps) {
+}: EnrollProfessorModalProps) {
   const { token } = useAuth();
   const [programs, setPrograms] = useState<ProgramDTO[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [fullName, setFullName] = useState("");
-  const [registration, setRegistration] = useState("");
-  const [curp, setCurp] = useState("");
-  const [cycle, setCycle] = useState("");
-  const [coordinador, setCoordinador] = useState("");
-  const [director, setDirector] = useState("");
+  const [ipnRegistration, setIpnRegistration] = useState("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
+  const [academicLoad, setAcademicLoad] = useState("");
   const [programId, setProgramId] = useState<number | "">("");
 
   useEffect(() => {
     if (!open || !token) return;
-    fetch("/api/programs", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) setPrograms(json.data);
+    fetch("/api/programs", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setPrograms(j.data);
       })
       .catch(console.error);
   }, [open, token]);
 
   const resetForm = () => {
     setFullName("");
-    setRegistration("");
-    setCurp("");
-    setCycle("");
-    setCoordinador("");
-    setDirector("");
+    setIpnRegistration("");
+    setEmployeeNumber("");
+    setAcademicLoad("");
     setProgramId("");
   };
 
@@ -85,7 +78,7 @@ export function EnrollStudentModal({
   };
 
   const handleSubmit = async () => {
-    if (!token || !fullName || !registration || !curp || !programId) return;
+    if (!token || !fullName || !employeeNumber || !academicLoad || !programId) return;
     setLoading(true);
 
     const parts = fullName.trim().split(/\s+/);
@@ -93,7 +86,7 @@ export function EnrollStudentModal({
     const lastName = parts.slice(1).join(" ") || "";
 
     try {
-      const res = await fetch("/api/students", {
+      const res = await fetch("/api/professors", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,12 +95,10 @@ export function EnrollStudentModal({
         body: JSON.stringify({
           name,
           lastName,
-          curp,
-          registration,
-          cycleId: 1,
-          programId: Number(programId),
-          coordinadorId: 1,
-          directorId: 1,
+          ipnRegistration: ipnRegistration || null,
+          employeeNumber,
+          academicLoad: parseFloat(academicLoad),
+          programId,
         }),
       });
 
@@ -118,14 +109,14 @@ export function EnrollStudentModal({
         onClose();
       }
     } catch (err) {
-      console.error("Enroll student error:", err);
+      console.error("Enroll professor error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Inscripción Estudiante">
+    <Modal open={open} onClose={handleClose} title="Inscripción Profesor">
       <div className="space-y-3">
         {/* Row 1: Nombre / Matrícula */}
         <AnimateIn delay={50}>
@@ -139,7 +130,7 @@ export function EnrollStudentModal({
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Ej. Juan Pérez Garcia"
+              placeholder="Ej. Juan Pérez García"
             />
           </div>
           <div>
@@ -149,76 +140,46 @@ export function EnrollStudentModal({
             <IconInput
               icon={faIdCard}
               type="text"
-              value={registration}
-              onChange={(e) => setRegistration(e.target.value)}
+              value={ipnRegistration}
+              onChange={(e) => setIpnRegistration(e.target.value)}
               placeholder="Ej. MIC-2024-001"
             />
           </div>
         </div>
         </AnimateIn>
 
-        {/* Row 2: CURP / Ciclo */}
+        {/* Row 2: Número de Empleado / Carga Académica */}
         <AnimateIn delay={100}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              CURP
+              Número de Empleado
             </label>
             <IconInput
-              icon={faFingerprint}
+              icon={faHashtag}
               type="text"
-              value={curp}
-              onChange={(e) => setCurp(e.target.value)}
-              placeholder="Ej. GABA041024HDFRRL09"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Ciclo Académico
-            </label>
-            <IconInput
-              icon={faCalendarDays}
-              type="text"
-              value={cycle}
-              onChange={(e) => setCycle(e.target.value)}
-              placeholder="Ej. 2025-2026/1"
-            />
-          </div>
-        </div>
-        </AnimateIn>
-
-        {/* Row 3: Coordinador / Director */}
-        <AnimateIn delay={150}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Coordinador de Sede
-            </label>
-            <IconInput
-              icon={faUserTie}
-              type="text"
-              value={coordinador}
-              onChange={(e) => setCoordinador(e.target.value)}
+              value={employeeNumber}
+              onChange={(e) => setEmployeeNumber(e.target.value)}
               placeholder="Nombre del coordinador"
             />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Director Académico
+              Carga Académica
             </label>
             <IconInput
-              icon={faUserTie}
+              icon={faClock}
               type="text"
-              value={director}
-              onChange={(e) => setDirector(e.target.value)}
-              placeholder="Nombre del director"
+              value={academicLoad}
+              onChange={(e) => setAcademicLoad(e.target.value)}
+              placeholder="Carga académica permitida"
             />
           </div>
         </div>
         </AnimateIn>
 
-        {/* Row 4: Programa Académico */}
-        <AnimateIn delay={200}>
+        {/* Row 3: Programa Académico */}
+        <AnimateIn delay={150}>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Programa Académico
@@ -252,7 +213,7 @@ export function EnrollStudentModal({
       </div>
 
       {/* Footer buttons */}
-      <AnimateIn delay={250}>
+      <AnimateIn delay={200}>
       <div className="mt-6 flex items-center justify-end gap-3">
         <button
           type="button"
@@ -264,7 +225,7 @@ export function EnrollStudentModal({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={loading || !fullName || !registration || !curp || !programId}
+          disabled={loading || !fullName || !employeeNumber || !academicLoad || !programId}
           className="rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? (

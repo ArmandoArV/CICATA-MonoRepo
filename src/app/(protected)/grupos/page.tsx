@@ -12,6 +12,11 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  RegisterSubjectModal,
+  EditSubjectModal,
+  DeleteSubjectModal,
+} from "@/frontend/components/subjects";
 
 interface Meta {
   page: number;
@@ -111,6 +116,12 @@ export default function GruposMateriasPage() {
   const [grpSelected, setGrpSelected] = useState<Set<number>>(new Set());
   const [grpLoading, setGrpLoading] = useState(true);
 
+  // Modal state (Materias)
+  const [showRegister, setShowRegister] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [activeSubjectId, setActiveSubjectId] = useState<number>(0);
+
   const fetchSubjects = useCallback(
     async (page: number) => {
       if (!token) return;
@@ -167,7 +178,12 @@ export default function GruposMateriasPage() {
             Gestiona el catálogo de materias y grupos.
           </p>
         </div>
-        <button className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5">
+        <button
+          onClick={() => {
+            if (tab === "materias") setShowRegister(true);
+          }}
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5"
+        >
           <FontAwesomeIcon icon={faPlus} />
           <span className="hidden sm:inline">Agregar</span>
         </button>
@@ -198,11 +214,31 @@ export default function GruposMateriasPage() {
             {selected.size} seleccionado{selected.size > 1 ? "s" : ""}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            <button className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]">
+            <button
+              onClick={() => {
+                if (tab === "materias" && subSelected.size === 1) {
+                  const id = [...subSelected][0];
+                  setActiveSubjectId(id);
+                  setShowEdit(true);
+                }
+              }}
+              disabled={tab === "materias" && subSelected.size !== 1}
+              className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039] disabled:opacity-50"
+            >
               <FontAwesomeIcon icon={faPen} />
               Editar
             </button>
-            <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+            <button
+              onClick={() => {
+                if (tab === "materias" && subSelected.size === 1) {
+                  const id = [...subSelected][0];
+                  setActiveSubjectId(id);
+                  setShowDelete(true);
+                }
+              }}
+              disabled={tab === "materias" && subSelected.size !== 1}
+              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            >
               <FontAwesomeIcon icon={faTrash} />
               Eliminar
             </button>
@@ -294,7 +330,8 @@ export default function GruposMateriasPage() {
                     {subjects.map((s) => (
                       <tr
                         key={s.id}
-                        className={`border-b border-gray-50 transition ${
+                        onClick={() => { setActiveSubjectId(s.id); setShowEdit(true); }}
+                        className={`border-b border-gray-50 transition cursor-pointer ${
                           subSelected.has(s.id) ? "bg-rose-50/60" : "hover:bg-gray-50/50"
                         }`}
                       >
@@ -456,6 +493,25 @@ export default function GruposMateriasPage() {
           )}
         </>
       )}
+
+      {/* ═══ Subject Modals ═══ */}
+      <RegisterSubjectModal
+        open={showRegister}
+        onClose={() => setShowRegister(false)}
+        onSuccess={() => { setSubSelected(new Set()); fetchSubjects(subMeta.page); }}
+      />
+      <EditSubjectModal
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        onSuccess={() => { setSubSelected(new Set()); fetchSubjects(subMeta.page); }}
+        subjectId={activeSubjectId}
+      />
+      <DeleteSubjectModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onSuccess={() => { setSubSelected(new Set()); fetchSubjects(subMeta.page); }}
+        subjectId={activeSubjectId}
+      />
     </div>
   );
 }

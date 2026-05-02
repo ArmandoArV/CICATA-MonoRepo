@@ -7,38 +7,34 @@ import {
   faPen,
   faUser,
   faIdCard,
-  faChartLine,
-  faAward,
+  faClock,
   faCalendarDays,
   faGraduationCap,
-  faUserTie,
 } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { Modal, AnimateIn } from "./Modal";
+import { Modal, AnimateIn } from "@/frontend/components/students/Modal";
 import type { ProgramDTO } from "@/shared/types";
 
-interface StudentProfileModalProps {
+interface ProfessorProfileModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  studentId: number;
+  professorId: number;
 }
 
-interface StudentProfile {
+interface ProfessorProfile {
   id: number;
   name: string;
   lastName: string;
-  registration: string;
-  curp: string;
+  ipnRegistration: string | null;
+  employeeNumber: string;
+  academicLoad: number;
+  availableHours: number;
   programId: number;
   programName: string;
-  cycleName: string;
-  semester: number;
   statusType: string;
-  directorName: string;
-  coordinadorName: string;
-  promedio: number;
-  creditos: number;
+  cycleName: string | null;
+  groups: string[];
 }
 
 const inputBase =
@@ -56,7 +52,7 @@ function IconInput({
 }) {
   return (
     <div className="relative">
-      <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400`}>
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
         <FontAwesomeIcon icon={icon} className="h-3.5 w-3.5" />
       </span>
       <input {...props} disabled={disabled} className={disabled ? inputDisabled : inputBase} />
@@ -64,110 +60,119 @@ function IconInput({
   );
 }
 
+export function ProfessorProfileModal({
+  open,
+  onClose,
+  onSuccess,
+  professorId,
+}: ProfessorProfileModalProps) {
+  const { token } = useAuth();
+
+  return (
+    <Modal open={open} onClose={onClose} title="Perfil Profesor">
+      {professorId > 0 ? (
+        <ProfileContent
+          professorId={professorId}
+          token={token}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      ) : null}
+    </Modal>
+  );
+}
+
 function ProfileContent({
-  studentId,
+  professorId,
+  token,
   onClose,
   onSuccess,
 }: {
-  studentId: number;
+  professorId: number;
+  token: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const { token } = useAuth();
+  const [profile, setProfile] = useState<ProfessorProfile | null>(null);
+  const [programs, setPrograms] = useState<ProgramDTO[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [programs, setPrograms] = useState<ProgramDTO[]>([]);
-  const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [editData, setEditData] = useState<Partial<StudentProfile>>({});
-  const [loading, setLoading] = useState(true);
+  const [editData, setEditData] = useState<Partial<ProfessorProfile>>({});
 
-  const loadData = useCallback(async () => {
-    if (!token) return;
+  const fetchProfile = useCallback(async () => {
+    if (!token || !professorId) return;
+    setLoading(true);
     try {
-      const [studentRes, programsRes] = await Promise.all([
-        fetch(`/api/students/${studentId}`, {
+      const [profRes, progRes] = await Promise.all([
+        fetch(`/api/professors/${professorId}`, {
           headers: { Authorization: `Bearer ${token}` },
-        }).then((r) => r.json()),
+        }),
         fetch("/api/programs", {
           headers: { Authorization: `Bearer ${token}` },
-        }).then((r) => r.json()),
+        }),
       ]);
-
-      if (studentRes.success || studentRes.data) {
-        const data = studentRes.data;
-        const p: StudentProfile = {
-          id: data.id,
-          name: data.name || "",
-          lastName: data.lastName || "",
-          registration: data.registration || "",
-          curp: data.curp || "",
-          programId: data.programId || 0,
-          programName: data.programName || "",
-          cycleName: data.cycleName || "",
-          semester: data.semester || 1,
-          statusType: data.statusType || "",
-          directorName: data.directorName || "",
-          coordinadorName: data.coordinadorName || "",
-          promedio: data.promedio ?? 0,
-          creditos: data.creditos ?? 0,
-        };
-        setProfile(p);
-        setEditData(p);
-      }
-      if (programsRes.success) {
-        setPrograms(programsRes.data);
-      }
+      const profJson = await profRes.json();
+      const progJson = await progRes.json();
+      if (profJson.success) setProfile(profJson.data);
+      if (progJson.success) setPrograms(progJson.data);
     } catch (err) {
-      console.error("Load student profile error:", err);
+      console.error("Fetch professor profile error:", err);
     } finally {
       setLoading(false);
     }
-  }, [token, studentId]);
+  }, [token, professorId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const handleEdit = () => {
+    if (!profile) return;
+    setEditData({
+      name: profile.name,
+      lastName: profile.lastName,
+      ipnRegistration: profile.ipnRegistration,
+      employeeNumber: profile.employeeNumber,
+      academicLoad: profile.academicLoad,
+      programId: profile.programId,
+    });
+    setEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setEditData({});
+  };
 
   const handleSave = async () => {
-    if (!token || !editData) return;
+    if (!token || !profile) return;
     setSaving(true);
-
     try {
-      const res = await fetch(`/api/students/${studentId}`, {
+      const res = await fetch(`/api/professors/${profile.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: editData.name,
-          lastName: editData.lastName,
-          registration: editData.registration,
-          programId: editData.programId,
-        }),
+        body: JSON.stringify(editData),
       });
-
       const json = await res.json();
       if (json.success || res.ok) {
         setEditing(false);
+        await fetchProfile();
         onSuccess();
-        onClose();
       }
     } catch (err) {
-      console.error("Update student error:", err);
+      console.error("Save professor error:", err);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditData(profile ? { ...profile } : {});
-    setEditing(false);
-  };
-
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center">
+      <div className="flex h-40 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7A154A] border-t-transparent" />
       </div>
     );
@@ -175,23 +180,23 @@ function ProfileContent({
 
   if (!profile) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <p className="text-gray-400">No se pudo cargar el perfil.</p>
+      <div className="flex h-40 items-center justify-center">
+        <p className="text-sm text-gray-400">Profesor no encontrado.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      {/* Subheader */}
+    <div className="space-y-4">
+      {/* Section header */}
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+        <h3 className="flex items-center gap-2 text-base font-bold text-gray-900">
           <FontAwesomeIcon icon={faGraduationCap} className="text-[#7A154A]" />
           Resumen Académico
         </h3>
         {!editing && (
           <button
-            onClick={() => setEditing(true)}
+            onClick={handleEdit}
             className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]"
           >
             <FontAwesomeIcon icon={faPen} className="text-xs" />
@@ -224,7 +229,7 @@ function ProfileContent({
                 lastName: parts.slice(1).join(" ") || "",
               });
             }}
-            placeholder="Ej. Juan Pérez Garcia"
+            placeholder="Ej. Juan Pérez García"
           />
         </div>
         <div>
@@ -235,9 +240,9 @@ function ProfileContent({
             icon={faIdCard}
             type="text"
             disabled={!editing}
-            value={editing ? editData.registration || "" : profile.registration}
+            value={editing ? editData.ipnRegistration || "" : profile.ipnRegistration || ""}
             onChange={(e) =>
-              setEditData({ ...editData, registration: e.target.value })
+              setEditData({ ...editData, ipnRegistration: e.target.value })
             }
             placeholder="Ej. MIC-2024-001"
           />
@@ -245,29 +250,25 @@ function ProfileContent({
       </div>
       </AnimateIn>
 
-      {/* Row 2: Promedio / Créditos / Ciclo */}
+      {/* Row 2: Carga Académica / Ciclo Académico */}
       <AnimateIn delay={100}>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Promedio
+            Carga Académica
           </label>
           <IconInput
-            icon={faChartLine}
+            icon={faClock}
             type="text"
-            disabled
-            value={`${profile.promedio}/10`}
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Créditos
-          </label>
-          <IconInput
-            icon={faAward}
-            type="text"
-            disabled
-            value={String(profile.creditos)}
+            disabled={!editing}
+            value={
+              editing
+                ? String(editData.academicLoad ?? "")
+                : `${profile.academicLoad} hrs`
+            }
+            onChange={(e) =>
+              setEditData({ ...editData, academicLoad: parseFloat(e.target.value) || 0 })
+            }
           />
         </div>
         <div>
@@ -278,7 +279,7 @@ function ProfileContent({
             icon={faCalendarDays}
             type="text"
             disabled
-            value={profile.cycleName}
+            value={profile.cycleName || "—"}
           />
         </div>
       </div>
@@ -291,7 +292,7 @@ function ProfileContent({
           Programa Académico
         </label>
         <div className="relative">
-          <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400`}>
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <FontAwesomeIcon icon={faGraduationCap} className="h-3.5 w-3.5" />
           </span>
           <select
@@ -318,38 +319,32 @@ function ProfileContent({
       </div>
       </AnimateIn>
 
-      {/* Director Académico */}
+      {/* Grupos Asignados */}
       <AnimateIn delay={200}>
       <div>
         <label className="mb-1.5 block text-sm font-medium text-gray-700">
-          Director Académico
+          Grupos Asignados
         </label>
-        <IconInput
-          icon={faUserTie}
-          type="text"
-          disabled
-          value={profile.directorName || "—"}
-          placeholder="Nombre del director"
-        />
+        {profile.groups.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {profile.groups.map((g) => (
+              <span
+                key={g}
+                className="rounded-full border border-[#7A154A]/20 bg-[#7A154A]/5 px-3 py-1 text-xs font-medium text-[#7A154A]"
+              >
+                {g}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">Sin grupos asignados</p>
+        )}
       </div>
       </AnimateIn>
 
-      {/* Coordinador de Sede */}
-      <AnimateIn delay={250}>
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-gray-700">
-          Coordinador de Sede
-        </label>
-        <IconInput
-          icon={faUserTie}
-          type="text"
-          disabled
-          value={profile.coordinadorName || "—"}
-          placeholder="Nombre del coordinador"
-        />
-      </div>
-      </AnimateIn>
+      {/* Footer buttons (edit mode) */}
       {editing && (
+        <AnimateIn delay={0}>
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             type="button"
@@ -377,27 +372,8 @@ function ProfileContent({
             )}
           </button>
         </div>
+        </AnimateIn>
       )}
     </div>
   );
 }
-
-export function StudentProfileModal({
-  open,
-  onClose,
-  onSuccess,
-  studentId,
-}: StudentProfileModalProps) {
-  return (
-    <Modal open={open} onClose={onClose} title="Perfil Estudiante" maxWidth="max-w-2xl">
-      {open && (
-        <ProfileContent
-          studentId={studentId}
-          onClose={onClose}
-          onSuccess={onSuccess}
-        />
-      )}
-    </Modal>
-  );
-}
-

@@ -90,6 +90,7 @@ export default function EstudiantesPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activeStudentId, setActiveStudentId] = useState<number>(0);
+  const [activeStudentReg, setActiveStudentReg] = useState("");
 
   const fetchStudents = useCallback(
     async (page: number) => {
@@ -189,7 +190,10 @@ export default function EstudiantesPage() {
   };
 
   const openReenroll = () => {
-    setActiveStudentId(getFirstSelectedId());
+    const firstId = getFirstSelectedId();
+    const student = students.find((s) => s.id === firstId);
+    setActiveStudentId(firstId);
+    setActiveStudentReg(student?.registration ?? "");
     setReenrollOpen(true);
   };
 
@@ -452,6 +456,7 @@ export default function EstudiantesPage() {
         onClose={() => setReenrollOpen(false)}
         onSuccess={handleModalSuccess}
         studentId={activeStudentId}
+        studentRegistration={activeStudentReg}
       />
       <StudentProfileModal
         open={profileOpen}

@@ -1,14 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/frontend/hooks";
-import { Modal } from "./Modal";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faIdCard, faUserTie } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import { Modal, AnimateIn } from "./Modal";
 
 interface ReenrollStudentModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
   studentId: number;
+  studentRegistration?: string;
+}
+
+const inputBase =
+  "w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-[#7A154A] focus:outline-none focus:ring-2 focus:ring-[#7A154A]/20";
+
+function IconInput({
+  icon,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  icon: IconDefinition;
+}) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+        <FontAwesomeIcon icon={icon} className="h-3.5 w-3.5" />
+      </span>
+      <input {...props} className={inputBase} />
+    </div>
+  );
 }
 
 export function ReenrollStudentModal({
@@ -16,6 +39,7 @@ export function ReenrollStudentModal({
   onClose,
   onSuccess,
   studentId,
+  studentRegistration,
 }: ReenrollStudentModalProps) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -23,6 +47,13 @@ export function ReenrollStudentModal({
   const [registration, setRegistration] = useState("");
   const [asesor, setAsesor] = useState("");
   const [director, setDirector] = useState("");
+
+  // Auto-fill registration when a student is selected
+  useEffect(() => {
+    if (open && studentRegistration) {
+      setRegistration(studentRegistration);
+    }
+  }, [open, studentRegistration]);
 
   const resetForm = () => {
     setRegistration("");
@@ -69,47 +100,55 @@ export function ReenrollStudentModal({
   return (
     <Modal open={open} onClose={handleClose} title="Reinscripción Estudiante">
       <div className="space-y-4">
+        <AnimateIn delay={50}>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Matrícula
           </label>
-          <input
+          <IconInput
+            icon={faIdCard}
             type="text"
             value={registration}
             onChange={(e) => setRegistration(e.target.value)}
             placeholder="Ej. MIC-2024-001"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-[#7A154A] focus:outline-none focus:ring-2 focus:ring-[#7A154A]/20"
+            readOnly={!!studentRegistration}
           />
         </div>
+        </AnimateIn>
 
+        <AnimateIn delay={100}>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Asesor
           </label>
-          <input
+          <IconInput
+            icon={faUserTie}
             type="text"
             value={asesor}
             onChange={(e) => setAsesor(e.target.value)}
             placeholder="Nombre del Asesor"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-[#7A154A] focus:outline-none focus:ring-2 focus:ring-[#7A154A]/20"
           />
         </div>
+        </AnimateIn>
 
+        <AnimateIn delay={150}>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Director Académico
           </label>
-          <input
+          <IconInput
+            icon={faUserTie}
             type="text"
             value={director}
             onChange={(e) => setDirector(e.target.value)}
             placeholder="Nombre del director encargado"
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-[#7A154A] focus:outline-none focus:ring-2 focus:ring-[#7A154A]/20"
           />
         </div>
+        </AnimateIn>
       </div>
 
       {/* Footer buttons */}
+      <AnimateIn delay={200}>
       <div className="mt-6 flex items-center justify-end gap-3">
         <button
           type="button"
@@ -137,6 +176,7 @@ export function ReenrollStudentModal({
           )}
         </button>
       </div>
+      </AnimateIn>
     </Modal>
   );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureInitialized } from "@/backend/database/init";
-import { query, queryOne } from "@/backend/database/pool";
+import { query, queryOne, execute } from "@/backend/database/pool";
 import { verifyToken, Logger } from "@/backend/utils";
 import { cookies } from "next/headers";
 import type { ProfessorTableRow } from "@/shared/types";
@@ -94,5 +94,98 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     Logger.error("Professors", "List error", err);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// ── POST /api/professors — Inscripción ────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  try {
+    await ensureInitialized();
+
+    const cookieStore = await cookies();
+    const cookieToken = cookieStore.get("auth-token")?.value;
+    const authHeader = req.headers.get("authorization");
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
+    const token = cookieToken || bearerToken;
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    const payload = await verifyToken(token);
+    if (!payload) {
+      return NextResponse.json(
+        { success: false, error: "Invalid token" },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const { name, lastName, ipnRegistration, employeeNumber, academicLoad, programId } = body;
+
+    if (!name || !lastName || !employeeNumber || !academicLoad || !programId) {
+      return NextResponse.json(
+        { success: false, error: "Required fields: name, lastName, employeeNumber, academicLoad, programId" },
+        { status: 400 }
+      );
+    }
+
+    // Find or create "Profesor" role
+    let role = await queryOne<{ idRole: number }>(
+      "SELECT idRole FROM userRoles WHERE role = 'Profesor'",
+      []
+    );
+    if (!role) {
+      const roleResult = await execute(
+        "INSERT INTO userRoles (role) VALUES ('Profesor')",
+        []
+      );
+      role = { idRole: roleResult.insertId };
+    }
+
+    // Create user
+    const userResult = await execute(
+      "INSERT INTO users (name, lastName, roleId, gender) VALUES (?, ?, ?, 'X')",
+      [name, lastName, role.idRole]
+    );
+    const userId = userResult.insertId;
+
+    // Find ACTIVO status
+    let status = await queryOne<{ idStatus: number }>(
+      "SELECT idStatus FROM statusCatalog WHERE type = 'ACTIVO'",
+      []
+    );
+    if (!status) {
+      const statusResult = await execute(
+        "INSERT INTO statusCatalog (type) VALUES ('ACTIVO')",
+        []
+      );
+      status = { idStatus: statusResult.insertId };
+    }
+
+    // Create professor
+    const profResult = await execute(
+      `INSERT INTO professors (userId, ipnRegistration, employeeNumber, academicLoad, availableHours, programId, statusId)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, ipnRegistration || null, employeeNumber, academicLoad, academicLoad, programId, status.idStatus]
+    );
+
+    Logger.debug("Professors", `POST created professor ${profResult.insertId}`);
+
+    return NextResponse.json({
+      success: true,
+      data: { id: profResult.insertId, userId },
+    });
+  } catch (err) {
+    Logger.error("Professors", "POST error", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

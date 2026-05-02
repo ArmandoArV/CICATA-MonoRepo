@@ -11,6 +11,11 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  EnrollProfessorModal,
+  ProfessorProfileModal,
+  DeleteProfessorModal,
+} from "@/frontend/components/professors";
 
 interface Meta {
   page: number;
@@ -62,6 +67,12 @@ export default function ProfesoresPage() {
   const [meta, setMeta] = useState<Meta>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
+
+  // Modal state
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activeProfessorId, setActiveProfessorId] = useState<number>(0);
 
   const fetchProfessors = useCallback(
     async (page: number) => {
@@ -133,6 +144,31 @@ export default function ProfesoresPage() {
   const startItem = (meta.page - 1) * meta.limit + 1;
   const endItem = Math.min(meta.page * meta.limit, meta.total);
 
+  const getFirstSelectedId = () => {
+    const first = Array.from(selected)[0];
+    return first ?? 0;
+  };
+
+  const handleModalSuccess = () => {
+    setSelected(new Set());
+    fetchProfessors(meta.page);
+  };
+
+  const openProfile = (id: number) => {
+    setActiveProfessorId(id);
+    setProfileOpen(true);
+  };
+
+  const openDelete = () => {
+    setActiveProfessorId(getFirstSelectedId());
+    setDeleteOpen(true);
+  };
+
+  const openVisualize = () => {
+    setActiveProfessorId(getFirstSelectedId());
+    setProfileOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -145,7 +181,10 @@ export default function ProfesoresPage() {
             Administra los profesores registrados.
           </p>
         </div>
-        <button className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5">
+        <button
+          onClick={() => setEnrollOpen(true)}
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5"
+        >
           <FontAwesomeIcon icon={faPlus} />
           <span className="hidden sm:inline">Inscribir</span>
         </button>
@@ -158,11 +197,17 @@ export default function ProfesoresPage() {
             {selected.size} seleccionado{selected.size > 1 ? "s" : ""}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            <button className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]">
+            <button
+              onClick={openVisualize}
+              className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]"
+            >
               <FontAwesomeIcon icon={faEye} />
               Visualizar
             </button>
-            <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+            <button
+              onClick={openDelete}
+              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
               <FontAwesomeIcon icon={faTrash} />
               Eliminar
             </button>
@@ -252,7 +297,8 @@ export default function ProfesoresPage() {
                 {professors.map((p) => (
                   <tr
                     key={p.id}
-                    className={`border-b border-gray-50 transition ${
+                    onClick={() => openProfile(p.id)}
+                    className={`border-b border-gray-50 cursor-pointer transition ${
                       selected.has(p.id) ? "bg-rose-50/60" : "hover:bg-gray-50/50"
                     }`}
                   >
@@ -328,6 +374,25 @@ export default function ProfesoresPage() {
           )}
         </>
       )}
+
+      {/* Modals */}
+      <EnrollProfessorModal
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        onSuccess={handleModalSuccess}
+      />
+      <ProfessorProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onSuccess={handleModalSuccess}
+        professorId={activeProfessorId}
+      />
+      <DeleteProfessorModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onSuccess={handleModalSuccess}
+        professorId={activeProfessorId}
+      />
     </div>
   );
 }

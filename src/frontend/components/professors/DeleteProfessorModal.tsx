@@ -4,21 +4,21 @@ import { useState } from "react";
 import { useAuth } from "@/frontend/hooks";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
-import { Modal, AnimateIn } from "./Modal";
+import { Modal, AnimateIn } from "@/frontend/components/students/Modal";
 
-interface DeleteStudentModalProps {
+interface DeleteProfessorModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  studentId: number;
+  professorId: number;
 }
 
-export function DeleteStudentModal({
+export function DeleteProfessorModal({
   open,
   onClose,
   onSuccess,
-  studentId,
-}: DeleteStudentModalProps) {
+  professorId,
+}: DeleteProfessorModalProps) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +27,7 @@ export function DeleteStudentModal({
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/students/${studentId}`, {
+      const res = await fetch(`/api/professors/${professorId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -38,17 +38,16 @@ export function DeleteStudentModal({
         onClose();
       }
     } catch (err) {
-      console.error("Delete student error:", err);
+      console.error("Delete professor error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Eliminar Estudiante" maxWidth="max-w-sm">
+    <Modal open={open} onClose={onClose} title="Eliminar Profesor" maxWidth="max-w-sm">
       <AnimateIn delay={50}>
       <div className="flex flex-col items-center text-center">
-        {/* Warning icon */}
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
           <FontAwesomeIcon
             icon={faTriangleExclamation}
@@ -57,7 +56,7 @@ export function DeleteStudentModal({
         </div>
 
         <p className="text-sm text-gray-600">
-          ¿Estás segura que quieres dar de baja este estudiante?
+          ¿Estás segura que quieres dar de baja este profesor?
         </p>
       </div>
       </AnimateIn>
