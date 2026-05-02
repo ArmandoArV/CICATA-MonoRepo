@@ -29,7 +29,7 @@ export const DocumentController = {
     try {
       const body: GenerateDocumentRequest = await request.json();
 
-      if (!body.templateId) {
+      if(!body.templateId) {
         return error("templateId is required");
       }
       if (!body.cycleId) {

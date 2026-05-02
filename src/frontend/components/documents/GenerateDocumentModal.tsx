@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/frontend/components/students/Modal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClipboardList, faDownload } from "@fortawesome/free-solid-svg-icons";
+import { faClipboardList, faDownload, faUserGraduate } from "@fortawesome/free-solid-svg-icons";
 
 interface Props {
   open: boolean;
@@ -18,6 +18,12 @@ interface TemplateOption {
   key: string;
   name: string;
   description: string;
+}
+
+interface StudentOption {
+  id: number;
+  name: string;
+  registration: string;
 }
 
 const STUDENT_TEMPLATES: TemplateOption[] = [
@@ -69,12 +75,16 @@ const PROFESSOR_TEMPLATES: TemplateOption[] = [
 ];
 
 export default function GenerateDocumentModal({ open, onClose, target, entityId, token }: Props) {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedKey, setSelectedKey] = useState("");
   const [pdfBase64, setPdfBase64] = useState("");
   const [generating, setGenerating] = useState(false);
   const [fileName, setFileName] = useState("");
   const [cycles, setCycles] = useState<{ id: number; cycle: string }[]>([]);
+
+  // Professor flow: pick a student since all professor doc types are about students
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<number>(0);
 
   useEffect(() => {
     if (!open) {
@@ -83,6 +93,7 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
       setPdfBase64("");
       setGenerating(false);
       setFileName("");
+      setSelectedStudentId(0);
     }
   }, [open]);
 
@@ -95,12 +106,42 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
     }
   }, [open, token, cycles.length]);
 
+  const fetchStudents = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/students?page=1&limit=200", { headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (json.success) {
+        setStudents(json.data.map((s: { id: number; name: string; lastName: string; registration: string }) => ({
+          id: s.id,
+          name: `${s.name} ${s.lastName}`,
+          registration: s.registration,
+        })));
+      }
+    } catch { /* noop */ }
+  }, [token]);
+
+  useEffect(() => {
+    if (open && target === "professor" && students.length === 0) fetchStudents();
+  }, [open, target, students.length, fetchStudents]);
+
   const templates = target === "student" ? STUDENT_TEMPLATES : PROFESSOR_TEMPLATES;
+
+  const handleNextFromType = () => {
+    if (target === "professor") {
+      setStep(2);
+    } else {
+      handleGenerate();
+    }
+  };
 
   const handleGenerate = async () => {
     if (!selectedKey || !token) return;
     const selected = templates.find(t => t.key === selectedKey);
     if (!selected) return;
+
+    const studentId = target === "student" ? entityId : selectedStudentId;
+    if (!studentId) return;
 
     setGenerating(true);
     try {
@@ -108,9 +149,9 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
         templateId: selected.id,
         cycleId: cycles[0]?.id ?? 1,
         useAI: false,
+        studentId,
       };
-      if (target === "student") body.studentId = entityId;
-      else body.professorId = entityId;
+      if (target === "professor") body.professorId = entityId;
 
       const res = await fetch("/api/documents/generate", {
         method: "POST",
@@ -124,7 +165,7 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
       if (json.success && json.data?.pdf) {
         setPdfBase64(json.data.pdf);
         setFileName(json.data.fileName || "documento.pdf");
-        setStep(2);
+        setStep(3);
       } else {
         console.error("Generate failed:", json);
       }
@@ -153,6 +194,7 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
 
   return (
     <Modal open={open} onClose={onClose} title="Generar Documento" maxWidth="max-w-lg">
+      {/* Step 1: Choose document type */}
       {step === 1 && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
@@ -161,7 +203,6 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
           </div>
 
           {target === "student" ? (
-            /* Card layout for students (2 options) */
             <div className="grid grid-cols-2 gap-3">
               {templates.map((t) => (
                 <button
@@ -189,7 +230,6 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
               ))}
             </div>
           ) : (
-            /* Radio list for professors (5 options) */
             <div className="space-y-1">
               {templates.map((t) => (
                 <label
@@ -214,18 +254,49 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
           )}
 
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
+            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 cursor-pointer">
               Cancelar
             </button>
             <button
               type="button"
-              onClick={handleGenerate}
+              onClick={handleNextFromType}
               disabled={!selectedKey || generating}
-              className="rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] disabled:opacity-50"
+              className="rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] disabled:opacity-50 cursor-pointer"
+            >
+              {target === "student" && generating ? "Generando..." : "Siguiente"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2 (professor flow only): Pick student */}
+      {step === 2 && target === "professor" && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+            <FontAwesomeIcon icon={faUserGraduate} className="text-[#7A154A]" />
+            Seleccionar Alumno
+          </div>
+
+          <select
+            value={selectedStudentId}
+            onChange={(e) => setSelectedStudentId(Number(e.target.value))}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800 focus:border-[#7A154A] focus:ring-1 focus:ring-[#7A154A] focus:outline-none"
+          >
+            <option value={0}>— Seleccionar alumno —</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} ({s.registration})</option>
+            ))}
+          </select>
+
+          <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+            <button type="button" onClick={() => setStep(1)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 cursor-pointer">
+              Regresar
+            </button>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={!selectedStudentId || generating}
+              className="rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] disabled:opacity-50 cursor-pointer"
             >
               {generating ? "Generando..." : "Siguiente"}
             </button>
@@ -233,9 +304,9 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
         </div>
       )}
 
-      {step === 2 && (
+      {/* Step 3 (or direct for students): PDF preview */}
+      {step === 3 && (
         <div className="space-y-4">
-          {/* PDF Preview */}
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
             {pdfBase64 ? (
               <iframe
@@ -251,17 +322,13 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
           </div>
 
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
+            <button type="button" onClick={() => setStep(1)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 cursor-pointer">
               Regresar
             </button>
             <button
               type="button"
               onClick={handleDownload}
-              className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039]"
+              className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] cursor-pointer"
             >
               <FontAwesomeIcon icon={faDownload} />
               Descargar
