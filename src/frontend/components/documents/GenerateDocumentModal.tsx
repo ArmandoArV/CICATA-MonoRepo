@@ -121,10 +121,12 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
         body: JSON.stringify(body),
       });
       const json = await res.json();
-      if (json.pdf) {
-        setPdfBase64(json.pdf);
-        setFileName(json.fileName || "documento.pdf");
+      if (json.success && json.data?.pdf) {
+        setPdfBase64(json.data.pdf);
+        setFileName(json.data.fileName || "documento.pdf");
         setStep(2);
+      } else {
+        console.error("Generate failed:", json);
       }
     } catch (err) {
       console.error("Generate error:", err);
