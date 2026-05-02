@@ -15,6 +15,7 @@ interface Props {
 
 interface TemplateOption {
   id: string;
+  key: string;
   name: string;
   description: string;
 }
@@ -22,11 +23,13 @@ interface TemplateOption {
 const STUDENT_TEMPLATES: TemplateOption[] = [
   {
     id: "constancia-promedio",
+    key: "stu-kardex",
     name: "Generar Kardex de calificaciones",
     description: "Incluye promedio general y estatus académico.",
   },
   {
     id: "constancia-inscripcion",
+    key: "stu-constancia",
     name: "Constancia de Estudios",
     description: "Documento de inscripción vigente.",
   },
@@ -35,26 +38,31 @@ const STUDENT_TEMPLATES: TemplateOption[] = [
 const PROFESSOR_TEMPLATES: TemplateOption[] = [
   {
     id: "carta-aceptacion",
+    key: "prof-carta",
     name: "Cartas de aceptación y terminación del servicio social",
     description: "",
   },
   {
     id: "constancia-promedio",
+    key: "prof-preactas",
     name: "Pre-actas de unidades de formación",
     description: "",
   },
   {
     id: "constancia-inscripcion",
+    key: "prof-inscripcion",
     name: "Constancias de inscripción",
     description: "",
   },
   {
     id: "constancia-reinscripcion",
+    key: "prof-reinscripcion",
     name: "Constancias de re-inscripción",
     description: "",
   },
   {
     id: "constancia-promedio",
+    key: "prof-carga",
     name: "Carga académica de alumnos",
     description: "",
   },
@@ -62,30 +70,43 @@ const PROFESSOR_TEMPLATES: TemplateOption[] = [
 
 export default function GenerateDocumentModal({ open, onClose, target, entityId, token }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [selectedKey, setSelectedKey] = useState("");
   const [pdfBase64, setPdfBase64] = useState("");
   const [generating, setGenerating] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [cycles, setCycles] = useState<{ id: number; cycle: string }[]>([]);
 
   useEffect(() => {
     if (!open) {
       setStep(1);
-      setSelectedTemplate("");
+      setSelectedKey("");
       setPdfBase64("");
       setGenerating(false);
       setFileName("");
     }
   }, [open]);
 
+  useEffect(() => {
+    if (open && token && cycles.length === 0) {
+      fetch("/api/cycles", { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(j => { if (j.success) setCycles(j.data); })
+        .catch(() => {});
+    }
+  }, [open, token, cycles.length]);
+
   const templates = target === "student" ? STUDENT_TEMPLATES : PROFESSOR_TEMPLATES;
 
   const handleGenerate = async () => {
-    if (!selectedTemplate || !token) return;
+    if (!selectedKey || !token) return;
+    const selected = templates.find(t => t.key === selectedKey);
+    if (!selected) return;
+
     setGenerating(true);
     try {
       const body: Record<string, unknown> = {
-        templateId: selectedTemplate,
-        cycleId: 1,
+        templateId: selected.id,
+        cycleId: cycles[0]?.id ?? 1,
         useAI: false,
       };
       if (target === "student") body.studentId = entityId;
@@ -142,11 +163,11 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
             <div className="grid grid-cols-2 gap-3">
               {templates.map((t) => (
                 <button
-                  key={t.id}
+                  key={t.key}
                   type="button"
-                  onClick={() => setSelectedTemplate(t.id)}
+                  onClick={() => setSelectedKey(t.key)}
                   className={`relative rounded-xl border-2 p-4 text-left transition ${
-                    selectedTemplate === t.id
+                    selectedKey === t.key
                       ? "border-[#7A154A] bg-rose-50/40"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
@@ -155,7 +176,7 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
                   {t.description && (
                     <p className="mt-1 text-xs text-gray-500">{t.description}</p>
                   )}
-                  {selectedTemplate === t.id && (
+                  {selectedKey === t.key && (
                     <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#7A154A] text-white">
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -170,9 +191,9 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
             <div className="space-y-1">
               {templates.map((t) => (
                 <label
-                  key={t.id + t.name}
+                  key={t.key}
                   className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 transition ${
-                    selectedTemplate === t.id + t.name
+                    selectedKey === t.key
                       ? "border-[#7A154A] bg-rose-50/40"
                       : "border-gray-200 hover:border-gray-300"
                   }`}
@@ -180,8 +201,8 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
                   <input
                     type="radio"
                     name="prof-doc-type"
-                    checked={selectedTemplate === t.id + t.name}
-                    onChange={() => setSelectedTemplate(t.id + t.name)}
+                    checked={selectedKey === t.key}
+                    onChange={() => setSelectedKey(t.key)}
                     className="h-4 w-4 accent-[#7A154A]"
                   />
                   <span className="text-sm text-gray-800">{t.name}</span>
@@ -201,7 +222,7 @@ export default function GenerateDocumentModal({ open, onClose, target, entityId,
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={!selectedTemplate || generating}
+              disabled={!selectedKey || generating}
               className="rounded-lg bg-[#7A154A] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] disabled:opacity-50"
             >
               {generating ? "Generando..." : "Siguiente"}
