@@ -1,0 +1,19 @@
+meta {
+  name: Download No Auth
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/documents/download
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "templateId": "constancia-inscripcion",
+    "studentId": 1,
+    "cycleId": 1
+  }
+}

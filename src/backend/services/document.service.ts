@@ -97,16 +97,32 @@ export const DocumentService = {
       }
     }
 
+    // Pre-render absolute-positioned elements (independent of flow)
+    for (const section of sections) {
+      if (section.type === "image") {
+        const img = section as ImageSection;
+        if (img.style.pageBottom || img.style.position === "absolute") {
+          await drawImage(doc, page, img, y);
+        }
+      }
+      if (section.type === "footer") {
+        drawFooter(page, fonts, section as TemplateSection);
+      }
+    }
+
     for (const section of sections) {
       if (section.marginTop) y -= section.marginTop;
 
-      // Handle image sections
+      // Skip pre-rendered sections
       if (section.type === "image") {
-        y = await drawImage(doc, page, section as ImageSection, y);
+        const img = section as ImageSection;
+        if (img.style.pageBottom || img.style.position === "absolute") continue;
+        y = await drawImage(doc, page, img, y);
         continue;
       }
 
       const textSection = section as TemplateSection;
+      if (textSection.type === "footer") continue;
 
       switch (textSection.type) {
         case "header":
@@ -127,12 +143,9 @@ export const DocumentService = {
         case "signature":
           y = drawSignatures(page, fonts, ctx, y);
           break;
-        case "footer":
-          drawFooter(page, fonts, textSection);
-          break;
       }
 
-      if (y < MARGIN_BOTTOM + 60 && textSection.type !== "footer") {
+      if (y < MARGIN_BOTTOM + 60) {
         break;
       }
     }
@@ -378,6 +391,14 @@ async function drawImage(
     return y;
   }
 
+  // Absolute positioning: y is offset from page top, doesn't affect flow
+  if (section.style.position === "absolute") {
+    const topOffset = section.style.y ?? 0;
+    const pdfY = PAGE_HEIGHT - topOffset - height;
+    page.drawImage(image, { x, y: pdfY, width, height });
+    return y;
+  }
+
   page.drawImage(image, { x, y: y - height, width, height });
 
   return y - height;
@@ -388,17 +409,28 @@ function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection): vo
   const size = section.style.fontSize;
   const text = typeof section.content === "string" ? section.content : "";
 
-  let y = MARGIN_BOTTOM - 10;
+  // Identity manual 2026: maroon line + address at page bottom
+  const lineStartX = 120;
+  const lineEndX = PAGE_WIDTH - 35;
+  const lineY = 48;
 
   page.drawLine({
-    start: { x: MARGIN_LEFT, y: y + 14 }, end: { x: PAGE_WIDTH - MARGIN_RIGHT, y: y + 14 },
-    thickness: 0.5, color: rgb(0.7, 0.7, 0.7),
+    start: { x: lineStartX, y: lineY },
+    end: { x: lineEndX, y: lineY },
+    thickness: 1.8,
+    color: rgb(0.545, 0.094, 0.129),
   });
 
-  for (const line of text.split("\n")) {
-    const width = font.widthOfTextAtSize(line, size);
-    const x = MARGIN_LEFT + (CONTENT_WIDTH - width) / 2;
-    page.drawText(line, { x, y, size, font, color: rgb(0.4, 0.4, 0.4) });
-    y -= size * 1.3;
+  if (text) {
+    const maxWidth = lineEndX - lineStartX;
+    const lines = wrapText(text, size, maxWidth, font);
+    let textY = lineY - 10;
+    for (const line of lines) {
+      page.drawText(line, {
+        x: lineStartX, y: textY, size, font,
+        color: rgb(0.35, 0.08, 0.12),
+      });
+      textY -= size * 1.3;
+    }
   }
 }

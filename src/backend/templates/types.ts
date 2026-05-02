@@ -45,6 +45,10 @@ export interface ImageStyle {
   align?: "left" | "center" | "right";
   /** Absolute x position in points (overrides align) */
   x?: number;
+  /** Offset from page top in points (used with position: "absolute") */
+  y?: number;
+  /** If "absolute", image is positioned by x/y from page edges, ignores flow */
+  position?: "absolute";
   /** Anchor image to the page bottom (absolute position, ignores flow) */
   pageBottom?: boolean;
 }

@@ -1,5 +1,4 @@
 import "server-only";
-import path from "path";
 
 import type { TemplateDefinition, AnyTemplateSection } from "./types";
 import {
@@ -8,11 +7,7 @@ import {
   fullName,
   programArticle,
 } from "./rules";
-
-const ASSETS = {
-  header: path.join(process.cwd(), "src/backend/assets/LogoHeader.png"),
-  footer: path.join(process.cwd(), "src/backend/assets/FooterBottomLeft.png"),
-};
+import { wrapWithLayout } from "./document-layout";
 
 export const constanciaPromedio: TemplateDefinition = {
   id: "constancia-promedio",
@@ -46,19 +41,7 @@ export const constanciaPromedio: TemplateDefinition = {
     const semesterCount =
       grades.length > 0 ? new Set(grades.map((g) => g.semester)).size : 0;
 
-    return [
-      {
-        type: "image",
-        content: ASSETS.header,
-        style: { width: 550, height: 95, align: "center" },
-      },
-      {
-        type: "folio-date",
-        content: () =>
-          `Folio\nSIP-DI-DDCYT-CICATAMOR-${ctx.folio ?? "0000-2026"}\n\nXochitepec, Morelos a ${dateStr}`,
-        style: { fontSize: 9, font: "sans", align: "left", lineHeight: 1.4 },
-        marginTop: 12,
-      },
+    return wrapWithLayout(ctx, [
       {
         type: "title",
         content: "CONSTANCIA DE PROMEDIO GLOBAL",
@@ -69,7 +52,12 @@ export const constanciaPromedio: TemplateDefinition = {
         type: "body",
         content: () =>
           `A QUIEN CORRESPONDA:\n\nSe hace constar que ${gender} ${studentName}, con número de registro ${registration}, alumno(a) inscrito(a) en ${prog}, ha obtenido un promedio global de ${average} (${averageWords(average)}), correspondiente a ${semesterCount} semestre(s) cursado(s).\n\nAsimismo, se hace constar que las siguientes unidades de aprendizaje corresponden a las materias cursadas hasta la fecha:`,
-        style: { fontSize: 10.5, font: "serif", align: "left", lineHeight: 1.7 },
+        style: {
+          fontSize: 10.5,
+          font: "serif",
+          align: "left",
+          lineHeight: 1.7,
+        },
         marginTop: 14,
       },
       {
@@ -82,7 +70,12 @@ export const constanciaPromedio: TemplateDefinition = {
         type: "body",
         content: () =>
           `\nSe extiende la presente CONSTANCIA para los fines que a la interesada(o) convengan, en Xochitepec, Morelos, a ${dateStr}.`,
-        style: { fontSize: 10.5, font: "serif", align: "left", lineHeight: 1.7 },
+        style: {
+          fontSize: 10.5,
+          font: "serif",
+          align: "left",
+          lineHeight: 1.7,
+        },
         marginTop: 8,
       },
       {
@@ -91,12 +84,7 @@ export const constanciaPromedio: TemplateDefinition = {
         style: { fontSize: 10, font: "sans", align: "center" },
         marginTop: 28,
       },
-      {
-        type: "image",
-        content: ASSETS.footer,
-        style: { width: 550, height: 65, align: "center", pageBottom: true },
-      },
-    ];
+    ]);
   },
 };
 

@@ -1,0 +1,29 @@
+meta {
+  name: Download Constancia Promedio (AI)
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/api/documents/download
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "templateId": "constancia-promedio",
+    "studentId": 1,
+    "cycleId": 1,
+    "useAI": true,
+    "customFields": {
+      "signatoryName": "DRA. MARÍA ELENA LÓPEZ",
+      "signatoryTitle": "Directora CICATA Morelos",
+      "grades": "[{\"subject\":\"Matemáticas Avanzadas\",\"grade\":\"9.8\",\"credits\":6,\"semester\":1},{\"subject\":\"Física Cuántica\",\"grade\":\"9.5\",\"credits\":6,\"semester\":1},{\"subject\":\"Bioquímica Molecular\",\"grade\":\"9.3\",\"credits\":4,\"semester\":2},{\"subject\":\"Nanotecnología\",\"grade\":\"10.0\",\"credits\":6,\"semester\":2},{\"subject\":\"Métodos de Investigación\",\"grade\":\"9.0\",\"credits\":4,\"semester\":3}]"
+    }
+  }
+}

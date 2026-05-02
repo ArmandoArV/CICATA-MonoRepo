@@ -1,7 +1,7 @@
 meta {
-  name: Download Constancia PDF
+  name: Download Carta Aceptacion (AI)
   type: http
-  seq: 13
+  seq: 21
 }
 
 post {
@@ -16,10 +16,14 @@ auth:bearer {
 
 body:json {
   {
-    "templateId": "constancia-inscripcion",
+    "templateId": "carta-aceptacion",
     "studentId": 1,
     "cycleId": 1,
+    "useAI": true,
     "customFields": {
+      "recipient": "Dr. Juan Carlos Pérez García",
+      "projectName": "Síntesis de nanopartículas de plata para aplicaciones biomédicas",
+      "originInstitution": "Universidad Autónoma del Estado de Morelos",
       "signatoryName": "DRA. MARÍA ELENA LÓPEZ",
       "signatoryTitle": "Directora CICATA Morelos",
       "signatorySubtitle": "Instituto Politécnico Nacional"

@@ -1,0 +1,31 @@
+meta {
+  name: Download Carta Aceptacion
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/documents/download
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "templateId": "carta-aceptacion",
+    "studentId": 1,
+    "cycleId": 1,
+    "customFields": {
+      "recipient": "Dr. Juan Carlos Pérez García",
+      "projectName": "Síntesis de nanopartículas de plata para aplicaciones biomédicas",
+      "originInstitution": "Universidad Autónoma del Estado de Morelos",
+      "signatoryName": "DRA. MARÍA ELENA LÓPEZ",
+      "signatoryTitle": "Directora CICATA Morelos",
+      "signatorySubtitle": "Instituto Politécnico Nacional"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Download Constancia Reinscripcion
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/documents/download
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "templateId": "constancia-reinscripcion",
+    "studentId": 1,
+    "cycleId": 1,
+    "customFields": {
+      "signatoryName": "DRA. MARÍA ELENA LÓPEZ",
+      "signatoryTitle": "Directora CICATA Morelos"
+    }
+  }
+}
