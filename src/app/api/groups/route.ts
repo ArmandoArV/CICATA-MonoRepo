@@ -1,25 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureInitialized } from "@/backend/database/init";
-import { query, queryOne } from "@/backend/database/pool";
+import { query, queryOne, execute } from "@/backend/database/pool";
 import { verifyToken, Logger } from "@/backend/utils";
 import { cookies } from "next/headers";
 import type { GroupTableRow } from "@/shared/types";
 
 export const runtime = "nodejs";
 
+async function authenticate(req: NextRequest) {
+  const cookieStore = await cookies();
+  const cookieToken = cookieStore.get("auth-token")?.value;
+  const authHeader = req.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = cookieToken || bearerToken;
+  if (!token) return null;
+  return verifyToken(token);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    await ensureInitialized();
+    const payload = await authenticate(req);
+    if (!payload) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json();
+    const { groupKey, subjectId, campus, place, schedule, professorId, cycleId, observations } = body;
+
+    if (!groupKey || !subjectId || !professorId || !cycleId) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    }
+
+    const result = await execute(
+      `INSERT INTO studyGroups (groupKey, subjectId, campus, place, schedule, professorId, cycleId, observations)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [groupKey, subjectId, campus || "CICATA MORELOS", place || "", schedule || null, professorId, cycleId, observations || null]
+    );
+
+    Logger.debug("Groups", `Created group ${result.insertId}`);
+    return NextResponse.json({ success: true, data: { id: result.insertId } }, { status: 201 });
+  } catch (err) {
+    Logger.error("Groups", "Create error", err);
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     await ensureInitialized();
-
-    const cookieStore = await cookies();
-    const cookieToken = cookieStore.get("auth-token")?.value;
-    const authHeader = req.headers.get("authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    const token = cookieToken || bearerToken;
-
-    if (!token) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    const payload = await verifyToken(token);
-    if (!payload) return NextResponse.json({ success: false, error: "Invalid token" }, { status: 401 });
+    const payload = await authenticate(req);
+    if (!payload) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));

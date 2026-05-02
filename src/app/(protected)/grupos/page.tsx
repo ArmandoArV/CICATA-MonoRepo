@@ -17,6 +17,11 @@ import {
   EditSubjectModal,
   DeleteSubjectModal,
 } from "@/frontend/components/subjects";
+import {
+  RegisterGroupModal,
+  EditGroupModal,
+  DeleteGroupModal,
+} from "@/frontend/components/groups";
 
 interface Meta {
   page: number;
@@ -122,6 +127,12 @@ export default function GruposMateriasPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [activeSubjectId, setActiveSubjectId] = useState<number>(0);
 
+  // Modal state (Grupos)
+  const [showGrpRegister, setShowGrpRegister] = useState(false);
+  const [showGrpEdit, setShowGrpEdit] = useState(false);
+  const [showGrpDelete, setShowGrpDelete] = useState(false);
+  const [activeGroupId, setActiveGroupId] = useState<number>(0);
+
   const fetchSubjects = useCallback(
     async (page: number) => {
       if (!token) return;
@@ -181,6 +192,7 @@ export default function GruposMateriasPage() {
         <button
           onClick={() => {
             if (tab === "materias") setShowRegister(true);
+            else setShowGrpRegister(true);
           }}
           className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5"
         >
@@ -220,9 +232,13 @@ export default function GruposMateriasPage() {
                   const id = [...subSelected][0];
                   setActiveSubjectId(id);
                   setShowEdit(true);
+                } else if (tab === "grupos" && grpSelected.size === 1) {
+                  const id = [...grpSelected][0];
+                  setActiveGroupId(id);
+                  setShowGrpEdit(true);
                 }
               }}
-              disabled={tab === "materias" && subSelected.size !== 1}
+              disabled={(tab === "materias" && subSelected.size !== 1) || (tab === "grupos" && grpSelected.size !== 1)}
               className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039] disabled:opacity-50"
             >
               <FontAwesomeIcon icon={faPen} />
@@ -234,9 +250,13 @@ export default function GruposMateriasPage() {
                   const id = [...subSelected][0];
                   setActiveSubjectId(id);
                   setShowDelete(true);
+                } else if (tab === "grupos" && grpSelected.size === 1) {
+                  const id = [...grpSelected][0];
+                  setActiveGroupId(id);
+                  setShowGrpDelete(true);
                 }
               }}
-              disabled={tab === "materias" && subSelected.size !== 1}
+              disabled={(tab === "materias" && subSelected.size !== 1) || (tab === "grupos" && grpSelected.size !== 1)}
               className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
             >
               <FontAwesomeIcon icon={faTrash} />
@@ -446,22 +466,23 @@ export default function GruposMateriasPage() {
                           className="h-4 w-4 rounded border-gray-300 accent-[#7A154A]"
                         />
                       </th>
-                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Grupo</th>
                       <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Materia</th>
-                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Profesor</th>
-                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Campus</th>
-                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Ciclo</th>
+                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Clave</th>
+                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Salón/Sede</th>
+                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Horario</th>
+                      <th className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Docente Coordinador</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groups.map((g) => (
                       <tr
                         key={g.id}
-                        className={`border-b border-gray-50 transition ${
+                        onClick={() => { setActiveGroupId(g.id); setShowGrpEdit(true); }}
+                        className={`border-b border-gray-50 transition cursor-pointer ${
                           grpSelected.has(g.id) ? "bg-rose-50/60" : "hover:bg-gray-50/50"
                         }`}
                       >
-                        <td className="py-4 pl-5 pr-2">
+                        <td className="py-4 pl-5 pr-2" onClick={e => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={grpSelected.has(g.id)}
@@ -469,14 +490,17 @@ export default function GruposMateriasPage() {
                             className="h-4 w-4 rounded border-gray-300 accent-[#7A154A]"
                           />
                         </td>
-                        <td className="px-4 py-4 font-mono font-medium text-gray-900">{g.groupKey}</td>
-                        <td className="px-4 py-4 text-gray-700">{g.subjectName}</td>
-                        <td className="px-4 py-4 text-gray-600">{g.professorName}</td>
-                        <td className="px-4 py-4 text-gray-600">{g.campus}</td>
+                        <td className="px-4 py-4 font-medium text-gray-900">{g.subjectName}</td>
+                        <td className="px-4 py-4 font-mono text-gray-600">{g.groupKey}</td>
+                        <td className="px-4 py-4 text-gray-600">{g.place}{g.campus ? ` - ${g.campus}` : ""}</td>
+                        <td className="px-4 py-4 text-gray-600">{g.schedule || "—"}</td>
                         <td className="px-4 py-4">
-                          <span className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
-                            {g.cycleName}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7A154A] text-xs font-bold text-white">
+                              {g.professorName.split(" ").filter(Boolean).map(w => w[0]).join("").substring(0, 2).toUpperCase()}
+                            </span>
+                            <span className="text-gray-700">{g.professorName}</span>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -511,6 +535,25 @@ export default function GruposMateriasPage() {
         onClose={() => setShowDelete(false)}
         onSuccess={() => { setSubSelected(new Set()); fetchSubjects(subMeta.page); }}
         subjectId={activeSubjectId}
+      />
+
+      {/* ═══ Group Modals ═══ */}
+      <RegisterGroupModal
+        open={showGrpRegister}
+        onClose={() => setShowGrpRegister(false)}
+        onSuccess={() => { setGrpSelected(new Set()); fetchGroups(grpMeta.page); }}
+      />
+      <EditGroupModal
+        open={showGrpEdit}
+        onClose={() => setShowGrpEdit(false)}
+        onSuccess={() => { setGrpSelected(new Set()); fetchGroups(grpMeta.page); }}
+        groupId={activeGroupId}
+      />
+      <DeleteGroupModal
+        open={showGrpDelete}
+        onClose={() => setShowGrpDelete(false)}
+        onSuccess={() => { setGrpSelected(new Set()); fetchGroups(grpMeta.page); }}
+        groupId={activeGroupId}
       />
     </div>
   );
