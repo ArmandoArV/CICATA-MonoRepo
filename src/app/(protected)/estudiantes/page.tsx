@@ -12,6 +12,12 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  EnrollStudentModal,
+  ReenrollStudentModal,
+  StudentProfileModal,
+  DeleteStudentModal,
+} from "@/frontend/components/students";
 
 interface Meta {
   page: number;
@@ -77,6 +83,13 @@ export default function EstudiantesPage() {
   });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
+
+  // Modal state
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [reenrollOpen, setReenrollOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activeStudentId, setActiveStudentId] = useState<number>(0);
 
   const fetchStudents = useCallback(
     async (page: number) => {
@@ -155,6 +168,31 @@ export default function EstudiantesPage() {
   const startItem = (meta.page - 1) * meta.limit + 1;
   const endItem = Math.min(meta.page * meta.limit, meta.total);
 
+  const getFirstSelectedId = () => {
+    const first = Array.from(selected)[0];
+    return first ?? 0;
+  };
+
+  const handleModalSuccess = () => {
+    setSelected(new Set());
+    fetchStudents(meta.page);
+  };
+
+  const openProfile = (id: number) => {
+    setActiveStudentId(id);
+    setProfileOpen(true);
+  };
+
+  const openDelete = () => {
+    setActiveStudentId(getFirstSelectedId());
+    setDeleteOpen(true);
+  };
+
+  const openReenroll = () => {
+    setActiveStudentId(getFirstSelectedId());
+    setReenrollOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -167,7 +205,10 @@ export default function EstudiantesPage() {
             Administra los estudiantes registrados.
           </p>
         </div>
-        <button className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5">
+        <button
+          onClick={() => setEnrollOpen(true)}
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5e1039] lg:px-5"
+        >
           <FontAwesomeIcon icon={faPlus} />
           <span className="hidden sm:inline">Inscribir</span>
         </button>
@@ -180,15 +221,24 @@ export default function EstudiantesPage() {
             {selected.size} seleccionado{selected.size > 1 ? "s" : ""}
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            <button className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]">
+            <button
+              onClick={() => openProfile(getFirstSelectedId())}
+              className="flex items-center gap-2 rounded-lg bg-[#7A154A] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#5e1039]"
+            >
               <FontAwesomeIcon icon={faEye} />
               Visualizar
             </button>
-            <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+            <button
+              onClick={openDelete}
+              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
               <FontAwesomeIcon icon={faTrash} />
               Eliminar
             </button>
-            <button className="flex items-center gap-2 rounded-lg border border-[#7A154A] bg-white px-4 py-2 text-sm font-medium text-[#7A154A] transition hover:bg-rose-50">
+            <button
+              onClick={openReenroll}
+              className="flex items-center gap-2 rounded-lg border border-[#7A154A] bg-white px-4 py-2 text-sm font-medium text-[#7A154A] transition hover:bg-rose-50"
+            >
               <FontAwesomeIcon icon={faRotate} />
               Reinscribir
             </button>
@@ -296,13 +346,14 @@ export default function EstudiantesPage() {
                 {students.map((s) => (
                   <tr
                     key={s.id}
-                    className={`border-b border-gray-50 transition ${
+                    onClick={() => openProfile(s.id)}
+                    className={`cursor-pointer border-b border-gray-50 transition ${
                       selected.has(s.id)
                         ? "bg-rose-50/60"
                         : "hover:bg-gray-50/50"
                     }`}
                   >
-                    <td className="py-4 pl-5 pr-2">
+                    <td className="py-4 pl-5 pr-2" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selected.has(s.id)}
@@ -389,6 +440,31 @@ export default function EstudiantesPage() {
           )}
         </>
       )}
+
+      {/* Modals */}
+      <EnrollStudentModal
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        onSuccess={handleModalSuccess}
+      />
+      <ReenrollStudentModal
+        open={reenrollOpen}
+        onClose={() => setReenrollOpen(false)}
+        onSuccess={handleModalSuccess}
+        studentId={activeStudentId}
+      />
+      <StudentProfileModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onSuccess={handleModalSuccess}
+        studentId={activeStudentId}
+      />
+      <DeleteStudentModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onSuccess={handleModalSuccess}
+        studentId={activeStudentId}
+      />
     </div>
   );
 }
