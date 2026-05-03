@@ -12,46 +12,60 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const HEX_FIELDS = ["headerBarColor", "accentColor"] as const;
 const STRING_FIELDS = ["footerText", "folioPrefix", "cityLocation"] as const;
-const NUMBER_FIELDS = [
-  "footerLineThickness",
+const DIMENSION_FIELDS = [
   "logoHeaderW", "logoHeaderH",
   "topRightW", "topRightH",
   "footerBottomW", "footerBottomH",
-  "marginLeft", "marginRight", "marginTop", "marginBottom",
+  "footerLineThickness",
 ] as const;
+const MARGIN_FIELDS = ["marginLeft", "marginRight", "marginTop", "marginBottom"] as const;
 
 const hexPattern = /^#[0-9A-Fa-f]{6}$/;
 
+type UpdateRecord = Record<string, string | number | boolean | null | Date | Buffer>;
+
+/** Helper: authenticate + fetch updated config after mutation */
+async function authAndReturn(request: NextRequest) {
+  const auth = await authenticate(request);
+  if (!isAuthenticated(auth)) return { auth };
+  return { auth: null };
+}
+
+async function respondWithConfig() {
+  const row = await LetterheadRepository.get();
+  if (!row) return error("Failed to retrieve config", 500);
+  return success(toLetterheadConfigDTO(row));
+}
+
 export const LetterheadController = {
+  /** GET /api/letterhead — full config */
   async get(request: NextRequest) {
     try {
-      const auth = await authenticate(request);
-      if (!isAuthenticated(auth)) return auth;
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
 
       const row = await LetterheadRepository.get();
       if (!row) return error("Letterhead config not found", 404);
-
       return success(toLetterheadConfigDTO(row));
     } catch {
       return serverError();
     }
   },
 
+  /** PUT /api/letterhead — images + colors (original endpoint, backward-compat) */
   async update(request: NextRequest) {
     try {
-      const auth = await authenticate(request);
-      if (!isAuthenticated(auth)) return auth;
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
 
       const body = await request.json();
-      const updates: Record<string, string | number | boolean | null | Date | Buffer> = {};
+      const updates: UpdateRecord = {};
 
-      // ── Image blobs (base64 → Buffer or null) ──
       for (const slot of IMAGE_SLOTS) {
         if (slot in body) {
           const val: string | null = body[slot];
-          if (val === null) {
-            updates[slot] = null;
-          } else {
+          if (val === null) { updates[slot] = null; }
+          else {
             const buf = Buffer.from(val, "base64");
             if (buf.length > MAX_IMAGE_SIZE) return error(`${slot} exceeds 5 MB limit`);
             updates[slot] = buf;
@@ -59,7 +73,6 @@ export const LetterheadController = {
         }
       }
 
-      // ── Hex colors ──
       for (const field of HEX_FIELDS) {
         if (field in body && body[field]) {
           if (!hexPattern.test(body[field])) return error(`${field} must be valid hex (#RRGGBB)`);
@@ -67,15 +80,11 @@ export const LetterheadController = {
         }
       }
 
-      // ── Strings ──
+      // Also accept text/dimension/margin fields for backward compat
       for (const field of STRING_FIELDS) {
-        if (field in body) {
-          updates[field] = body[field] === "" ? null : body[field];
-        }
+        if (field in body) updates[field] = body[field] === "" ? null : body[field];
       }
-
-      // ── Numbers ──
-      for (const field of NUMBER_FIELDS) {
+      for (const field of [...DIMENSION_FIELDS, ...MARGIN_FIELDS]) {
         if (field in body) {
           const n = Number(body[field]);
           if (isNaN(n) || n < 0) return error(`${field} must be a non-negative number`);
@@ -84,22 +93,116 @@ export const LetterheadController = {
       }
 
       if (Object.keys(updates).length === 0) return error("No valid fields provided");
-
       await LetterheadRepository.update(updates);
-
-      const updated = await LetterheadRepository.get();
-      if (!updated) return error("Failed to retrieve updated config", 500);
-
-      return success(toLetterheadConfigDTO(updated));
+      return respondWithConfig();
     } catch {
       return serverError();
     }
   },
 
+  /** PUT /api/letterhead/text — footerText, folioPrefix, cityLocation */
+  async updateText(request: NextRequest) {
+    try {
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
+
+      const body = await request.json();
+      const updates: UpdateRecord = {};
+
+      for (const field of STRING_FIELDS) {
+        if (field in body) updates[field] = body[field] === "" ? null : body[field];
+      }
+
+      if (Object.keys(updates).length === 0) return error("Provide at least one text field: footerText, folioPrefix, cityLocation");
+      await LetterheadRepository.update(updates);
+      return respondWithConfig();
+    } catch {
+      return serverError();
+    }
+  },
+
+  /** PUT /api/letterhead/dimensions — image sizes + line thickness */
+  async updateDimensions(request: NextRequest) {
+    try {
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
+
+      const body = await request.json();
+      const updates: UpdateRecord = {};
+
+      for (const field of DIMENSION_FIELDS) {
+        if (field in body) {
+          const n = Number(body[field]);
+          if (isNaN(n) || n < 0) return error(`${field} must be a non-negative number`);
+          updates[field] = n;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) return error("Provide at least one dimension field");
+      await LetterheadRepository.update(updates);
+      return respondWithConfig();
+    } catch {
+      return serverError();
+    }
+  },
+
+  /** PUT /api/letterhead/margins — page margins */
+  async updateMargins(request: NextRequest) {
+    try {
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
+
+      const body = await request.json();
+      const updates: UpdateRecord = {};
+
+      for (const field of MARGIN_FIELDS) {
+        if (field in body) {
+          const n = Number(body[field]);
+          if (isNaN(n) || n < 0) return error(`${field} must be a non-negative number`);
+          updates[field] = n;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) return error("Provide at least one margin field: marginLeft, marginRight, marginTop, marginBottom");
+      await LetterheadRepository.update(updates);
+      return respondWithConfig();
+    } catch {
+      return serverError();
+    }
+  },
+
+  /** PUT /api/letterhead/watermark — watermark image upload */
+  async updateWatermark(request: NextRequest) {
+    try {
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
+
+      const body = await request.json();
+      const updates: UpdateRecord = {};
+
+      if (!("watermark" in body)) return error("Provide watermark (base64 string or null)");
+
+      const val: string | null = body.watermark;
+      if (val === null) {
+        updates.watermark = null;
+      } else {
+        const buf = Buffer.from(val, "base64");
+        if (buf.length > MAX_IMAGE_SIZE) return error("Watermark exceeds 5 MB limit");
+        updates.watermark = buf;
+      }
+
+      await LetterheadRepository.update(updates);
+      return respondWithConfig();
+    } catch {
+      return serverError();
+    }
+  },
+
+  /** DELETE /api/letterhead — clear an image slot */
   async deleteSlot(request: NextRequest) {
     try {
-      const auth = await authenticate(request);
-      if (!isAuthenticated(auth)) return auth;
+      const { auth } = await authAndReturn(request);
+      if (auth) return auth;
 
       const body = await request.json();
       const slot = body.slot as ImageSlot;
@@ -109,11 +212,7 @@ export const LetterheadController = {
       }
 
       await LetterheadRepository.clearSlot(slot);
-
-      const updated = await LetterheadRepository.get();
-      if (!updated) return error("Failed to retrieve updated config", 500);
-
-      return success(toLetterheadConfigDTO(updated));
+      return respondWithConfig();
     } catch {
       return serverError();
     }
