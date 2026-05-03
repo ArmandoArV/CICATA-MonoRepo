@@ -9,6 +9,7 @@ import {
   faTrashCan,
   faPalette,
   faTriangleExclamation,
+  faFileLines,
 } from "@fortawesome/free-solid-svg-icons";
 import { Modal } from "@/frontend/components/students/Modal";
 import type { LetterheadConfigDTO } from "@/shared/types";
@@ -75,6 +76,16 @@ export default function MembretadoTab({ token }: Props) {
     if (!config) return null;
     return (config as unknown as Record<string, string | null>)[key] ?? null;
   };
+
+  // Effective image: pending upload takes priority, otherwise current saved
+  const getEffectiveImage = (key: string): string | null => {
+    if (key in pending) return pending[key] ?? null;
+    return getCurrentImage(key);
+  };
+
+  // Effective colors for the document preview
+  const effectiveHeaderBarColor = pendingColors.headerBarColor ?? config?.headerBarColor ?? "#8B1832";
+  const effectiveAccentColor = pendingColors.accentColor ?? config?.accentColor ?? "#591020";
 
   const handleFileSelect = (slot: SlotMeta, file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -178,11 +189,20 @@ export default function MembretadoTab({ token }: Props) {
               <div className="space-y-3">
                 <p className="text-xs font-medium text-gray-500">Actualizar Imagen</p>
 
-                {/* Pending file indicator */}
+                {/* Show new uploaded image preview */}
                 {isPending && pendingImg && (
-                  <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                    <span className="h-2 w-2 rounded-full bg-amber-400" />
-                    Nueva imagen pendiente de guardar
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+                      <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                      Pendiente de guardar
+                    </div>
+                    <div className="flex items-center justify-center rounded-xl border-2 border-amber-300 bg-amber-50/30 p-3" style={{ minHeight: "120px" }}>
+                      <img
+                        src={`data:image/png;base64,${pendingImg}`}
+                        alt="Nueva imagen"
+                        className="max-h-[100px] max-w-full object-contain"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -281,12 +301,12 @@ export default function MembretadoTab({ token }: Props) {
             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
               <input
                 type="color"
-                value={pendingColors.headerBarColor ?? config?.headerBarColor ?? "#8B1832"}
+                value={effectiveHeaderBarColor}
                 onChange={(e) => setPendingColors((c) => ({ ...c, headerBarColor: e.target.value }))}
                 className="h-8 w-10 cursor-pointer rounded border-0"
               />
               <span className="text-sm text-gray-700">
-                {pendingColors.headerBarColor ?? config?.headerBarColor ?? "#8B1832"}
+                {effectiveHeaderBarColor}
               </span>
             </div>
           </label>
@@ -296,15 +316,122 @@ export default function MembretadoTab({ token }: Props) {
             <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
               <input
                 type="color"
-                value={pendingColors.accentColor ?? config?.accentColor ?? "#591020"}
+                value={effectiveAccentColor}
                 onChange={(e) => setPendingColors((c) => ({ ...c, accentColor: e.target.value }))}
                 className="h-8 w-10 cursor-pointer rounded border-0"
               />
               <span className="text-sm text-gray-700">
-                {pendingColors.accentColor ?? config?.accentColor ?? "#591020"}
+                {effectiveAccentColor}
               </span>
             </div>
           </label>
+        </div>
+      </section>
+
+      {/* ── Live Document Mockup Preview ── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <FontAwesomeIcon icon={faFileLines} className="text-[#7A154A]" />
+          Vista Previa del Documento
+          {hasPendingChanges && (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              Con cambios pendientes
+            </span>
+          )}
+        </div>
+
+        <div className="flex justify-center">
+          <div
+            className="relative overflow-hidden rounded-lg border border-gray-300 bg-white shadow-md"
+            style={{ width: "420px", height: "544px" }}
+          >
+            {/* Header — logo left */}
+            <div className="absolute left-[28px] top-[20px]" style={{ width: "240px", height: "44px" }}>
+              {getEffectiveImage("logoHeader") ? (
+                <img
+                  src={`data:image/png;base64,${getEffectiveImage("logoHeader")}`}
+                  alt="Logo header"
+                  className="h-full w-full object-contain object-left"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded bg-gray-100 text-[9px] text-gray-400">Logo Header</div>
+              )}
+            </div>
+
+            {/* Header — top right */}
+            <div className="absolute right-[14px] top-[7px]" style={{ width: "62px", height: "62px" }}>
+              {getEffectiveImage("topRight") ? (
+                <img
+                  src={`data:image/png;base64,${getEffectiveImage("topRight")}`}
+                  alt="Top right"
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded bg-gray-100 text-[8px] text-gray-400">Top Right</div>
+              )}
+            </div>
+
+            {/* Folio + date mock */}
+            <div className="absolute left-[50px] top-[82px] flex w-[320px] justify-between">
+              <div className="space-y-[2px]">
+                <div className="h-[4px] w-[14px] rounded-full bg-gray-300" />
+                <div className="h-[4px] w-[90px] rounded-full bg-gray-200" />
+              </div>
+              <div className="h-[4px] w-[100px] rounded-full bg-gray-200" />
+            </div>
+
+            {/* Title mock */}
+            <div className="absolute left-1/2 top-[110px] -translate-x-1/2">
+              <div className="h-[6px] w-[160px] rounded-full bg-gray-800" />
+            </div>
+
+            {/* Body text lines mock */}
+            <div className="absolute left-[50px] top-[135px] space-y-[6px]">
+              <div className="h-[4px] w-[320px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[300px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[310px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[280px] rounded-full bg-gray-200" />
+              <div className="mt-[6px] h-[4px] w-[320px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[290px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[315px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[260px] rounded-full bg-gray-200" />
+              <div className="mt-[6px] h-[4px] w-[300px] rounded-full bg-gray-200" />
+              <div className="h-[4px] w-[280px] rounded-full bg-gray-200" />
+            </div>
+
+            {/* Signature mock */}
+            <div className="absolute bottom-[130px] left-1/2 -translate-x-1/2 text-center">
+              <div className="mx-auto h-[5px] w-[50px] rounded-full bg-gray-300" />
+              <div className="mt-[8px] mx-auto h-[1px] w-[130px] bg-gray-400" />
+              <div className="mt-[4px] mx-auto h-[4px] w-[100px] rounded-full bg-gray-300" />
+              <div className="mt-[3px] mx-auto h-[3px] w-[80px] rounded-full bg-gray-200" />
+            </div>
+
+            {/* Footer — bottom left image */}
+            <div className="absolute bottom-[7px] left-[17px]" style={{ width: "55px", height: "55px" }}>
+              {getEffectiveImage("footerBottom") ? (
+                <img
+                  src={`data:image/png;base64,${getEffectiveImage("footerBottom")}`}
+                  alt="Footer"
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded bg-gray-100 text-[7px] text-gray-400">Footer</div>
+              )}
+            </div>
+
+            {/* Footer — maroon line */}
+            <div
+              className="absolute bottom-[33px] left-[82px] right-[24px]"
+              style={{ height: "2px", backgroundColor: effectiveHeaderBarColor }}
+            />
+
+            {/* Footer — address text */}
+            <div className="absolute bottom-[14px] left-[82px] right-[24px] space-y-[2px]">
+              <div className="h-[3px] w-[80%] rounded-full" style={{ backgroundColor: effectiveAccentColor, opacity: 0.5 }} />
+              <div className="h-[3px] w-[60%] rounded-full" style={{ backgroundColor: effectiveAccentColor, opacity: 0.5 }} />
+            </div>
+          </div>
         </div>
       </section>
 
