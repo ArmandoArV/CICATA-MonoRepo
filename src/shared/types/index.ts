@@ -191,8 +191,23 @@ export interface LetterheadConfigDTO {
   logoHeader: string | null;
   topRight: string | null;
   footerBottom: string | null;
+  watermark: string | null;
   headerBarColor: string;
   accentColor: string;
+  footerText: string | null;
+  folioPrefix: string;
+  cityLocation: string;
+  footerLineThickness: number;
+  logoHeaderW: number;
+  logoHeaderH: number;
+  topRightW: number;
+  topRightH: number;
+  footerBottomW: number;
+  footerBottomH: number;
+  marginLeft: number;
+  marginRight: number;
+  marginTop: number;
+  marginBottom: number;
   updatedAt: string;
 }
 

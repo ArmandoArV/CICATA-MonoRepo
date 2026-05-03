@@ -27,7 +27,8 @@ export type SectionType =
   | "body"
   | "grades-table"
   | "signature"
-  | "footer";
+  | "footer"
+  | "watermark";
 
 export interface TemplateSection {
   type: SectionType;
@@ -54,8 +55,8 @@ export interface ImageStyle {
 }
 
 export interface ImageSection {
-  type: "image";
-  /** Absolute file path to the image (png/jpg) */
+  type: "image" | "watermark";
+  /** Absolute file path to the image (png/jpg) or buffer:base64 */
   content: string;
   style: ImageStyle;
   marginTop?: number;
@@ -79,6 +80,29 @@ export interface GradeEntry {
 
 // ── Template context (data passed to render) ──────────
 
+export interface LetterheadOverrides {
+  logoHeader?: Buffer | null;
+  topRight?: Buffer | null;
+  footerBottom?: Buffer | null;
+  watermark?: Buffer | null;
+  headerBarColor?: string;
+  accentColor?: string;
+  footerText?: string | null;
+  folioPrefix?: string;
+  cityLocation?: string;
+  footerLineThickness?: number;
+  logoHeaderW?: number;
+  logoHeaderH?: number;
+  topRightW?: number;
+  topRightH?: number;
+  footerBottomW?: number;
+  footerBottomH?: number;
+  marginLeft?: number;
+  marginRight?: number;
+  marginTop?: number;
+  marginBottom?: number;
+}
+
 export interface TemplateContext {
   student?: SafeStudent;
   professor?: SafeProfessor;
@@ -90,13 +114,7 @@ export interface TemplateContext {
   grades?: GradeEntry[];
   signatures: SignatureBlock[];
   customFields?: Record<string, string>;
-  letterheadOverrides?: {
-    logoHeader?: Buffer | null;
-    topRight?: Buffer | null;
-    footerBottom?: Buffer | null;
-    headerBarColor?: string;
-    accentColor?: string;
-  };
+  letterheadOverrides?: LetterheadOverrides;
 }
 
 // ── Template definition ───────────────────────────────

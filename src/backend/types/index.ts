@@ -196,8 +196,23 @@ export interface LetterheadConfigRow {
   logoHeader: Buffer | null;
   topRight: Buffer | null;
   footerBottom: Buffer | null;
+  watermark: Buffer | null;
   headerBarColor: string;
   accentColor: string;
+  footerText: string | null;
+  folioPrefix: string;
+  cityLocation: string;
+  footerLineThickness: number;
+  logoHeaderW: number;
+  logoHeaderH: number;
+  topRightW: number;
+  topRightH: number;
+  footerBottomW: number;
+  footerBottomH: number;
+  marginLeft: number;
+  marginRight: number;
+  marginTop: number;
+  marginBottom: number;
   updatedAt: Date;
 }
 

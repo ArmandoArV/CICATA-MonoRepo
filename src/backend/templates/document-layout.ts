@@ -6,18 +6,9 @@ import type {
   ImageSection,
   TemplateSection,
   TemplateContext,
+  LetterheadOverrides,
 } from "./types";
 import { formatDateSpanish } from "./rules";
-
-/**
- * Shared document "brochure" layout.
- *
- * Defines the fixed visual elements (header images, footer image, maroon line,
- * address text) and safe content zones so text never overlaps images.
- *
- * Each template only needs to provide its inner content sections (title, body,
- * grades-table, signature). This file wraps them with the standard layout.
- */
 
 // ── Asset paths (fallback when no DB overrides) ───────
 
@@ -29,31 +20,28 @@ export const ASSETS = {
   topRight: path.join(ASSETS_DIR, "TopRight.png"),
 };
 
-// ── Letterhead override data (loaded from DB) ─────────
+// Re-export so other modules can import from a single place
+export type { LetterheadOverrides };
 
-export interface LetterheadOverrides {
-  logoHeader?: Buffer | null;
-  topRight?: Buffer | null;
-  footerBottom?: Buffer | null;
-  headerBarColor?: string;
-  accentColor?: string;
-}
+// ── Default footer text ───────────────────────────────
 
-// ── Layout constants (safe content boundaries in points) ──
+const DEFAULT_FOOTER_TEXT =
+  "Boulevard de la Tecnología, 1036, Atlacholoaya, Código Postal 62790, Xochitepec, | Morelos. Tel: 777 308 61 01 | www.ipn.mx | www.cicatamorelos.ipn.mx";
 
-/** Top of content area (below header images). */
+// ── Layout constants ──────────────────────────────────
+
 export const CONTENT_START_MARGIN_TOP = 60;
 
-/** The fixed image sections that form the page "brochure" */
-function headerImages(overrides?: LetterheadOverrides): AnyTemplateSection[] {
+/** The fixed image sections that form the page header */
+function headerImages(ov?: LetterheadOverrides): AnyTemplateSection[] {
   const headerContent =
-    overrides?.logoHeader && overrides.logoHeader.length > 0
-      ? `buffer:${overrides.logoHeader.toString("base64")}`
+    ov?.logoHeader && ov.logoHeader.length > 0
+      ? `buffer:${ov.logoHeader.toString("base64")}`
       : ASSETS.header;
 
   const topRightContent =
-    overrides?.topRight && overrides.topRight.length > 0
-      ? `buffer:${overrides.topRight.toString("base64")}`
+    ov?.topRight && ov.topRight.length > 0
+      ? `buffer:${ov.topRight.toString("base64")}`
       : ASSETS.topRight;
 
   return [
@@ -61,9 +49,9 @@ function headerImages(overrides?: LetterheadOverrides): AnyTemplateSection[] {
       type: "image",
       content: headerContent,
       style: {
-        width: 350,
-        height: 65,
-        x: 40,
+        width: ov?.logoHeaderW ?? 350,
+        height: ov?.logoHeaderH ?? 65,
+        x: ov?.marginLeft ?? 40,
         y: 30,
         position: "absolute",
       },
@@ -72,8 +60,8 @@ function headerImages(overrides?: LetterheadOverrides): AnyTemplateSection[] {
       type: "image",
       content: topRightContent,
       style: {
-        width: 90,
-        height: 90,
+        width: ov?.topRightW ?? 90,
+        height: ov?.topRightH ?? 90,
         x: 490,
         y: 10,
         position: "absolute",
@@ -82,52 +70,68 @@ function headerImages(overrides?: LetterheadOverrides): AnyTemplateSection[] {
   ];
 }
 
-/** Folio + date row that sits just below the header images */
+/** Folio + date row */
 function folioDateSection(ctx: TemplateContext): AnyTemplateSection {
+  const ov = ctx.letterheadOverrides;
+  const prefix = ov?.folioPrefix ?? "SIP-DI-DDCYT-CICATAMOR-";
+  const city = ov?.cityLocation ?? "Xochitepec, Morelos";
   const dateStr = formatDateSpanish(ctx.date);
   return {
     type: "folio-date",
     content: () =>
-      `Folio\nSIP-DI-DDCYT-CICATAMOR-${ctx.folio ?? "0000-2026"}\n\nXochitepec, Morelos a ${dateStr}`,
+      `Folio\n${prefix}${ctx.folio ?? "0000-2026"}\n\n${city} a ${dateStr}`,
     style: { fontSize: 9, font: "sans", align: "left", lineHeight: 1.4 },
     marginTop: CONTENT_START_MARGIN_TOP,
   } as TemplateSection;
 }
 
-/** Footer image (bottom-left corner) + maroon line + address */
-function footerSections(overrides?: LetterheadOverrides): AnyTemplateSection[] {
+/** Footer image + maroon line + address */
+function footerSections(ov?: LetterheadOverrides): AnyTemplateSection[] {
   const footerContent =
-    overrides?.footerBottom && overrides.footerBottom.length > 0
-      ? `buffer:${overrides.footerBottom.toString("base64")}`
+    ov?.footerBottom && ov.footerBottom.length > 0
+      ? `buffer:${ov.footerBottom.toString("base64")}`
       : ASSETS.footer;
 
   return [
     {
       type: "image",
       content: footerContent,
-      style: { width: 80, height: 80, x: 25, pageBottom: true },
+      style: {
+        width: ov?.footerBottomW ?? 80,
+        height: ov?.footerBottomH ?? 80,
+        x: 25,
+        pageBottom: true,
+      },
     } as ImageSection,
     {
       type: "footer",
-      content:
-        "Boulevard de la Tecnología, 1036, Atlacholoaya, Código Postal 62790, Xochitepec, | Morelos. Tel: 777 308 61 01 | www.ipn.mx | www.cicatamorelos.ipn.mx",
+      content: ov?.footerText ?? DEFAULT_FOOTER_TEXT,
       style: { fontSize: 6, font: "sans", align: "left" },
-      // Attach color overrides for the footer renderer
-      _colors: overrides
-        ? { headerBarColor: overrides.headerBarColor, accentColor: overrides.accentColor }
+      _colors: ov
+        ? { headerBarColor: ov.headerBarColor, accentColor: ov.accentColor }
         : undefined,
-    } as TemplateSection & { _colors?: { headerBarColor?: string; accentColor?: string } },
+      _lineThickness: ov?.footerLineThickness,
+    } as TemplateSection & {
+      _colors?: { headerBarColor?: string; accentColor?: string };
+      _lineThickness?: number;
+    },
+  ];
+}
+
+/** Watermark section (if provided) */
+function watermarkSection(ov?: LetterheadOverrides): AnyTemplateSection[] {
+  if (!ov?.watermark || ov.watermark.length === 0) return [];
+  return [
+    {
+      type: "watermark",
+      content: `buffer:${ov.watermark.toString("base64")}`,
+      style: { width: 200, height: 200, position: "absolute" },
+    } as ImageSection,
   ];
 }
 
 // ── Public API ────────────────────────────────────────
 
-/**
- * Wraps an array of content sections (title, body, grades-table, signature)
- * with the standard brochure layout (header images → folio/date → [content] → footer).
- *
- * Templates only need to provide their unique middle content.
- */
 export function wrapWithLayout(
   ctx: TemplateContext,
   contentSections: AnyTemplateSection[],
@@ -136,6 +140,7 @@ export function wrapWithLayout(
   const ov = overrides ?? ctx.letterheadOverrides;
   return [
     ...headerImages(ov),
+    ...watermarkSection(ov),
     folioDateSection(ctx),
     ...contentSections,
     ...footerSections(ov),

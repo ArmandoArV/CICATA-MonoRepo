@@ -3,6 +3,8 @@ import "server-only";
 import { queryOne, execute } from "@/backend/database/pool";
 import type { LetterheadConfigRow } from "@/backend/types";
 
+const IMAGE_SLOTS = ["logoHeader", "topRight", "footerBottom", "watermark"] as const;
+
 export const LetterheadRepository = {
   async get(): Promise<LetterheadConfigRow | null> {
     return queryOne<LetterheadConfigRow>(
@@ -10,29 +12,18 @@ export const LetterheadRepository = {
     );
   },
 
-  async upsertImages(
-    slot: "logoHeader" | "topRight" | "footerBottom",
-    data: Buffer | null
-  ): Promise<void> {
-    await execute(
-      `UPDATE letterheadConfig SET ${slot} = ? WHERE id = 1`,
-      [data]
-    );
+  /** Generic field updater — caller is responsible for validation */
+  async update(fields: Record<string, string | number | boolean | null | Date | Buffer>): Promise<void> {
+    const entries = Object.entries(fields).filter(([, v]) => v !== undefined);
+    if (entries.length === 0) return;
+    const setClauses = entries.map(([k]) => `\`${k}\` = ?`).join(", ");
+    const values = entries.map(([, v]) => v);
+    await execute(`UPDATE letterheadConfig SET ${setClauses} WHERE id = 1`, values);
   },
 
-  async upsertColors(
-    headerBarColor: string,
-    accentColor: string
-  ): Promise<void> {
+  async clearSlot(slot: typeof IMAGE_SLOTS[number]): Promise<void> {
     await execute(
-      "UPDATE letterheadConfig SET headerBarColor = ?, accentColor = ? WHERE id = 1",
-      [headerBarColor, accentColor]
-    );
-  },
-
-  async clearSlot(slot: "logoHeader" | "topRight" | "footerBottom"): Promise<void> {
-    await execute(
-      `UPDATE letterheadConfig SET ${slot} = NULL WHERE id = 1`,
+      `UPDATE letterheadConfig SET \`${slot}\` = NULL WHERE id = 1`,
       []
     );
   },

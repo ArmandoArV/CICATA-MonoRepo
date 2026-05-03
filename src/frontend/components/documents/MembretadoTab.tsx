@@ -10,6 +10,10 @@ import {
   faPalette,
   faTriangleExclamation,
   faFileLines,
+  faFont,
+  faRuler,
+  faStamp,
+  faArrowsAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import { Modal } from "@/frontend/components/students/Modal";
 import type { LetterheadConfigDTO } from "@/shared/types";
@@ -42,6 +46,7 @@ export default function MembretadoTab({ token }: Props) {
   // Pending uploads (base64 strings) — only committed on "Guardar Cambios"
   const [pending, setPending] = useState<Partial<Record<string, string | null>>>({});
   const [pendingColors, setPendingColors] = useState<{ headerBarColor?: string; accentColor?: string }>({});
+  const [pendingFields, setPendingFields] = useState<Record<string, string | number | null>>({});
 
   // Preview modal
   const [previewSlot, setPreviewSlot] = useState<string | null>(null);
@@ -86,6 +91,12 @@ export default function MembretadoTab({ token }: Props) {
   // Effective colors for the document preview
   const effectiveHeaderBarColor = pendingColors.headerBarColor ?? config?.headerBarColor ?? "#8B1832";
   const effectiveAccentColor = pendingColors.accentColor ?? config?.accentColor ?? "#591020";
+
+  // Effective field values
+  const eff = (key: keyof LetterheadConfigDTO) =>
+    key in pendingFields ? pendingFields[key] : config?.[key] ?? null;
+  const effStr = (key: keyof LetterheadConfigDTO, fallback: string) => String(eff(key) ?? fallback);
+  const effNum = (key: keyof LetterheadConfigDTO, fallback: number) => Number(eff(key) ?? fallback);
 
   const handleFileSelect = (slot: SlotMeta, file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -132,18 +143,12 @@ export default function MembretadoTab({ token }: Props) {
     try {
       const body: Record<string, unknown> = {};
 
-      // Only send pending image changes
-      for (const [key, val] of Object.entries(pending)) {
-        body[key] = val;
-      }
-
+      for (const [key, val] of Object.entries(pending)) body[key] = val;
       if (pendingColors.headerBarColor) body.headerBarColor = pendingColors.headerBarColor;
       if (pendingColors.accentColor) body.accentColor = pendingColors.accentColor;
+      for (const [key, val] of Object.entries(pendingFields)) body[key] = val;
 
-      if (Object.keys(body).length === 0) {
-        setSaving(false);
-        return;
-      }
+      if (Object.keys(body).length === 0) { setSaving(false); return; }
 
       await fetch("/api/letterhead", {
         method: "PUT",
@@ -153,12 +158,15 @@ export default function MembretadoTab({ token }: Props) {
 
       setPending({});
       setPendingColors({});
+      setPendingFields({});
       await fetchConfig();
     } catch { /* noop */ }
     finally { setSaving(false); }
   };
 
-  const hasPendingChanges = Object.keys(pending).length > 0 || Object.keys(pendingColors).length > 0;
+  const hasPendingChanges = Object.keys(pending).length > 0
+    || Object.keys(pendingColors).length > 0
+    || Object.keys(pendingFields).length > 0;
 
   if (loading) {
     return (
@@ -328,6 +336,226 @@ export default function MembretadoTab({ token }: Props) {
         </div>
       </section>
 
+      {/* ── Text Settings ── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <FontAwesomeIcon icon={faFont} className="text-[#7A154A]" />
+          Texto del Documento
+        </div>
+
+        <div className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-gray-600">Texto del pie de página</span>
+            <textarea
+              value={effStr("footerText", "Boulevard de la Tecnología, 1036, Atlacholoaya, Código Postal 62790, Xochitepec, | Morelos. Tel: 777 308 61 01 | www.ipn.mx | www.cicatamorelos.ipn.mx")}
+              onChange={(e) => setPendingFields((f) => ({ ...f, footerText: e.target.value || null }))}
+              rows={2}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-[#7A154A] focus:outline-none focus:ring-1 focus:ring-[#7A154A]"
+              placeholder="Dirección y datos de contacto..."
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-4">
+            <label className="space-y-1.5">
+              <span className="text-xs font-medium text-gray-600">Prefijo del folio</span>
+              <input
+                type="text"
+                value={effStr("folioPrefix", "SIP-DI-DDCYT-CICATAMOR-")}
+                onChange={(e) => setPendingFields((f) => ({ ...f, folioPrefix: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-[#7A154A] focus:outline-none focus:ring-1 focus:ring-[#7A154A]"
+              />
+            </label>
+
+            <label className="space-y-1.5">
+              <span className="text-xs font-medium text-gray-600">Ciudad / Ubicación</span>
+              <input
+                type="text"
+                value={effStr("cityLocation", "Xochitepec, Morelos")}
+                onChange={(e) => setPendingFields((f) => ({ ...f, cityLocation: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-[#7A154A] focus:outline-none focus:ring-1 focus:ring-[#7A154A]"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Line Thickness ── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <FontAwesomeIcon icon={faRuler} className="text-[#7A154A]" />
+          Grosor de Línea del Pie
+        </div>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="0.5"
+            max="5"
+            step="0.1"
+            value={effNum("footerLineThickness", 1.8)}
+            onChange={(e) => setPendingFields((f) => ({ ...f, footerLineThickness: parseFloat(e.target.value) }))}
+            className="flex-1 accent-[#7A154A] cursor-pointer"
+          />
+          <span className="w-14 text-center text-sm font-medium text-gray-700">{effNum("footerLineThickness", 1.8).toFixed(1)} pt</span>
+        </div>
+      </section>
+
+      {/* ── Image Dimensions ── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <FontAwesomeIcon icon={faArrowsAlt} className="text-[#7A154A]" />
+          Dimensiones de Imágenes
+          <span className="text-[10px] font-normal text-gray-400">(puntos PDF)</span>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {([
+            { label: "Logo Header", wKey: "logoHeaderW" as const, hKey: "logoHeaderH" as const, dw: 350, dh: 65 },
+            { label: "Top Right", wKey: "topRightW" as const, hKey: "topRightH" as const, dw: 90, dh: 90 },
+            { label: "Footer", wKey: "footerBottomW" as const, hKey: "footerBottomH" as const, dw: 80, dh: 80 },
+          ]).map((dim) => (
+            <div key={dim.wKey} className="space-y-2 rounded-lg border border-gray-200 bg-white p-3">
+              <p className="text-[11px] font-semibold text-gray-600">{dim.label}</p>
+              <div className="flex items-center gap-2">
+                <label className="flex-1">
+                  <span className="text-[10px] text-gray-400">Ancho</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="600"
+                    value={effNum(dim.wKey, dim.dw)}
+                    onChange={(e) => setPendingFields((f) => ({ ...f, [dim.wKey]: parseInt(e.target.value) || dim.dw }))}
+                    className="w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:border-[#7A154A] focus:outline-none"
+                  />
+                </label>
+                <span className="mt-4 text-gray-400">×</span>
+                <label className="flex-1">
+                  <span className="text-[10px] text-gray-400">Alto</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="600"
+                    value={effNum(dim.hKey, dim.dh)}
+                    onChange={(e) => setPendingFields((f) => ({ ...f, [dim.hKey]: parseInt(e.target.value) || dim.dh }))}
+                    className="w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:border-[#7A154A] focus:outline-none"
+                  />
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Page Margins ── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <FontAwesomeIcon icon={faRuler} className="text-[#7A154A]" />
+          Márgenes de Página
+          <span className="text-[10px] font-normal text-gray-400">(puntos PDF, 72 = 1 pulgada)</span>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          {([
+            { label: "Superior", key: "marginTop" as const, def: 72 },
+            { label: "Inferior", key: "marginBottom" as const, def: 72 },
+            { label: "Izquierdo", key: "marginLeft" as const, def: 72 },
+            { label: "Derecho", key: "marginRight" as const, def: 72 },
+          ]).map((m) => (
+            <label key={m.key} className="space-y-1">
+              <span className="text-[11px] font-medium text-gray-600">{m.label}</span>
+              <input
+                type="number"
+                min="18"
+                max="144"
+                value={effNum(m.key, m.def)}
+                onChange={(e) => setPendingFields((f) => ({ ...f, [m.key]: parseInt(e.target.value) || m.def }))}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 focus:border-[#7A154A] focus:outline-none focus:ring-1 focus:ring-[#7A154A]"
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Watermark ── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <FontAwesomeIcon icon={faStamp} className="text-[#7A154A]" />
+          Marca de Agua
+        </div>
+        <div className="grid grid-cols-2 gap-5">
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-gray-500">Subir Marca de Agua</p>
+            {pending.watermark && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                  Pendiente de guardar
+                </div>
+                <div className="flex items-center justify-center rounded-xl border-2 border-amber-300 bg-amber-50/30 p-3" style={{ minHeight: "100px" }}>
+                  <img src={`data:image/png;base64,${pending.watermark}`} alt="Watermark" className="max-h-[80px] max-w-full object-contain opacity-30" />
+                </div>
+              </div>
+            )}
+            <div
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault(); e.stopPropagation();
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = () => { setPending((p) => ({ ...p, watermark: (reader.result as string).split(",")[1] })); };
+                  reader.readAsDataURL(file);
+                }
+              }}
+              className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/60 px-4 py-5 transition hover:border-[#7A154A]/40"
+            >
+              <FontAwesomeIcon icon={faStamp} className="mb-2 h-5 w-5 text-gray-400" />
+              <p className="text-xs text-gray-500">Imagen semi-transparente centrada (8% opacidad)</p>
+              <input
+                ref={(el) => { fileInputRefs.current["watermark"] = el; }}
+                type="file"
+                accept=".png,.jpg,.jpeg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = () => { setPending((p) => ({ ...p, watermark: (reader.result as string).split(",")[1] })); };
+                    reader.readAsDataURL(file);
+                  }
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRefs.current["watermark"]?.click()}
+                className="mt-2 rounded-lg bg-[#7A154A] px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-[#5e1039] cursor-pointer"
+              >
+                Seleccionar Archivo
+              </button>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-500">Marca Actual</p>
+              {config?.watermark && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteSlot({ key: "watermark" as "logoHeader", label: "Marca de Agua", description: "", fileName: "" })}
+                  className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                >
+                  <FontAwesomeIcon icon={faTrashCan} className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-4" style={{ minHeight: "140px" }}>
+              {config?.watermark ? (
+                <img src={`data:image/png;base64,${config.watermark}`} alt="Watermark" className="max-h-[120px] max-w-full object-contain opacity-30" />
+              ) : (
+                <p className="text-xs text-gray-400">Sin marca de agua</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Live Document Mockup Preview ── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
@@ -370,6 +598,18 @@ export default function MembretadoTab({ token }: Props) {
                 <div className="flex h-full w-full items-center justify-center rounded bg-gray-100 text-[8px] text-gray-400">Top Right</div>
               )}
             </div>
+
+            {/* Watermark overlay */}
+            {(pending.watermark || config?.watermark) && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <img
+                  src={`data:image/png;base64,${pending.watermark ?? config?.watermark}`}
+                  alt="Watermark"
+                  className="max-h-[100px] max-w-[100px] object-contain"
+                  style={{ opacity: 0.08 }}
+                />
+              </div>
+            )}
 
             {/* Folio + date mock */}
             <div className="absolute left-[50px] top-[82px] flex w-[320px] justify-between">
@@ -423,7 +663,7 @@ export default function MembretadoTab({ token }: Props) {
             {/* Footer — maroon line */}
             <div
               className="absolute bottom-[33px] left-[82px] right-[24px]"
-              style={{ height: "2px", backgroundColor: effectiveHeaderBarColor }}
+              style={{ height: `${Math.max(1, effNum("footerLineThickness", 1.8) * 1.1)}px`, backgroundColor: effectiveHeaderBarColor }}
             />
 
             {/* Footer — address text */}

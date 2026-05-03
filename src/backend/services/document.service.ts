@@ -16,15 +16,31 @@ import { formatDateSpanish } from "@/backend/templates/rules";
 import { Logger } from "@/backend/utils";
 import { LetterheadRepository } from "@/backend/repositories";
 
-// ── Page constants ────────────────────────────────────
+// ── Page defaults ─────────────────────────────────────
 
 const PAGE_WIDTH = 612; // Letter
 const PAGE_HEIGHT = 792;
-const MARGIN_LEFT = 72; // 1 inch
-const MARGIN_RIGHT = 72;
-const MARGIN_TOP = 72;
-const MARGIN_BOTTOM = 72;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+const DEF_MARGIN = 72; // 1 inch
+
+/** Resolved per-render layout (margins can be overridden from DB) */
+interface Layout {
+  pw: number; ph: number;
+  ml: number; mr: number; mt: number; mb: number;
+  cw: number; // content width
+}
+
+function buildLayout(ctx: TemplateContext): Layout {
+  const ov = ctx.letterheadOverrides;
+  const ml = ov?.marginLeft ?? DEF_MARGIN;
+  const mr = ov?.marginRight ?? DEF_MARGIN;
+  return {
+    pw: PAGE_WIDTH, ph: PAGE_HEIGHT,
+    ml, mr,
+    mt: ov?.marginTop ?? DEF_MARGIN,
+    mb: ov?.marginBottom ?? DEF_MARGIN,
+    cw: PAGE_WIDTH - ml - mr,
+  };
+}
 
 // ── Font map ──────────────────────────────────────────
 
@@ -87,8 +103,23 @@ export const DocumentService = {
             logoHeader: lhRow.logoHeader,
             topRight: lhRow.topRight,
             footerBottom: lhRow.footerBottom,
+            watermark: lhRow.watermark,
             headerBarColor: lhRow.headerBarColor,
             accentColor: lhRow.accentColor,
+            footerText: lhRow.footerText,
+            folioPrefix: lhRow.folioPrefix,
+            cityLocation: lhRow.cityLocation,
+            footerLineThickness: Number(lhRow.footerLineThickness),
+            logoHeaderW: lhRow.logoHeaderW,
+            logoHeaderH: lhRow.logoHeaderH,
+            topRightW: lhRow.topRightW,
+            topRightH: lhRow.topRightH,
+            footerBottomW: lhRow.footerBottomW,
+            footerBottomH: lhRow.footerBottomH,
+            marginLeft: lhRow.marginLeft,
+            marginRight: lhRow.marginRight,
+            marginTop: lhRow.marginTop,
+            marginBottom: lhRow.marginBottom,
           };
         }
       } catch {
@@ -96,11 +127,12 @@ export const DocumentService = {
       }
     }
 
+    const L = buildLayout(ctx);
     const doc = await PDFDocument.create();
     const fonts = await loadFonts(doc);
-    const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    const page = doc.addPage([L.pw, L.ph]);
 
-    let y = PAGE_HEIGHT - MARGIN_TOP;
+    let y = L.ph - L.mt;
 
     const sections = template.buildSections(ctx);
 
@@ -118,25 +150,30 @@ export const DocumentService = {
 
     // Pre-render absolute-positioned elements (independent of flow)
     for (const section of sections) {
+      if (section.type === "watermark") {
+        await drawWatermark(doc, page, section as ImageSection, L);
+        continue;
+      }
       if (section.type === "image") {
         const img = section as ImageSection;
         if (img.style.pageBottom || img.style.position === "absolute") {
-          await drawImage(doc, page, img, y);
+          await drawImage(doc, page, img, y, L);
         }
       }
       if (section.type === "footer") {
-        drawFooter(page, fonts, section as TemplateSection);
+        drawFooter(page, fonts, section as TemplateSection, L);
       }
     }
 
     for (const section of sections) {
       if (section.marginTop) y -= section.marginTop;
 
-      // Skip pre-rendered sections
+      if (section.type === "watermark") continue;
+
       if (section.type === "image") {
         const img = section as ImageSection;
         if (img.style.pageBottom || img.style.position === "absolute") continue;
-        y = await drawImage(doc, page, img, y);
+        y = await drawImage(doc, page, img, y, L);
         continue;
       }
 
@@ -145,26 +182,26 @@ export const DocumentService = {
 
       switch (textSection.type) {
         case "header":
-          y = drawHeader(page, fonts, textSection, y);
+          y = drawHeader(page, fonts, textSection, y, L);
           break;
         case "folio-date":
-          y = drawFolioDate(page, fonts, ctx, y);
+          y = drawFolioDate(page, fonts, ctx, y, L);
           break;
         case "title":
-          y = drawTitle(page, fonts, textSection, y);
+          y = drawTitle(page, fonts, textSection, y, L);
           break;
         case "body":
-          y = drawBody(page, fonts, textSection, ctx, y);
+          y = drawBody(page, fonts, textSection, ctx, y, L);
           break;
         case "grades-table":
-          y = drawGradesTable(page, fonts, ctx.grades ?? [], y);
+          y = drawGradesTable(page, fonts, ctx.grades ?? [], y, L);
           break;
         case "signature":
-          y = drawSignatures(page, fonts, ctx, y);
+          y = drawSignatures(page, fonts, ctx, y, L);
           break;
       }
 
-      if (y < MARGIN_BOTTOM + 60) {
+      if (y < L.mb + 60) {
         break;
       }
     }
@@ -181,7 +218,7 @@ function resolveContent(section: TemplateSection, ctx: TemplateContext): string 
     : section.content;
 }
 
-function drawHeader(page: PDFPage, fonts: FontMap, section: TemplateSection, y: number): number {
+function drawHeader(page: PDFPage, fonts: FontMap, section: TemplateSection, y: number, L: Layout): number {
   const font = fonts[section.style.font];
   const size = section.style.fontSize;
   const text = typeof section.content === "string" ? section.content : "";
@@ -190,8 +227,8 @@ function drawHeader(page: PDFPage, fonts: FontMap, section: TemplateSection, y: 
     const width = font.widthOfTextAtSize(line, size);
     const x =
       section.style.align === "center"
-        ? MARGIN_LEFT + (CONTENT_WIDTH - width) / 2
-        : MARGIN_LEFT;
+        ? L.ml + (L.cw - width) / 2
+        : L.ml;
 
     page.drawText(line, { x, y, size, font, color: rgb(0, 0, 0) });
     y -= size * (section.style.lineHeight ?? 1.4);
@@ -200,37 +237,37 @@ function drawHeader(page: PDFPage, fonts: FontMap, section: TemplateSection, y: 
   return y;
 }
 
-function drawFolioDate(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: number): number {
+function drawFolioDate(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: number, L: Layout): number {
   const font = fonts["sans"];
   const size = 9;
 
   page.drawText(ctx.folio, {
-    x: MARGIN_LEFT, y, size, font, color: rgb(0.3, 0.3, 0.3),
+    x: L.ml, y, size, font, color: rgb(0.3, 0.3, 0.3),
   });
 
   const dateStr = formatDateSpanish(ctx.date);
   const dateWidth = font.widthOfTextAtSize(dateStr, size);
   page.drawText(dateStr, {
-    x: PAGE_WIDTH - MARGIN_RIGHT - dateWidth, y, size, font, color: rgb(0.3, 0.3, 0.3),
+    x: L.pw - L.mr - dateWidth, y, size, font, color: rgb(0.3, 0.3, 0.3),
   });
 
   return y - 24;
 }
 
-function drawTitle(page: PDFPage, fonts: FontMap, section: TemplateSection, y: number): number {
+function drawTitle(page: PDFPage, fonts: FontMap, section: TemplateSection, y: number, L: Layout): number {
   const font = fonts[section.style.font];
   const size = section.style.fontSize;
   const text = typeof section.content === "string" ? section.content : "";
 
   const width = font.widthOfTextAtSize(text, size);
-  const x = MARGIN_LEFT + (CONTENT_WIDTH - width) / 2;
+  const x = L.ml + (L.cw - width) / 2;
 
   page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
   return y - size * 2.5;
 }
 
 function drawBody(
-  page: PDFPage, fonts: FontMap, section: TemplateSection, ctx: TemplateContext, y: number
+  page: PDFPage, fonts: FontMap, section: TemplateSection, ctx: TemplateContext, y: number, L: Layout
 ): number {
   const font = fonts[section.style.font];
   const size = section.style.fontSize;
@@ -243,14 +280,14 @@ function drawBody(
       continue;
     }
 
-    const lines = wrapText(para, size, CONTENT_WIDTH, font);
+    const lines = wrapText(para, size, L.cw, font);
 
     for (const line of lines) {
-      let x = MARGIN_LEFT;
+      let x = L.ml;
       if (section.style.align === "center") {
-        x = MARGIN_LEFT + (CONTENT_WIDTH - font.widthOfTextAtSize(line, size)) / 2;
+        x = L.ml + (L.cw - font.widthOfTextAtSize(line, size)) / 2;
       } else if (section.style.align === "right") {
-        x = PAGE_WIDTH - MARGIN_RIGHT - font.widthOfTextAtSize(line, size);
+        x = L.pw - L.mr - font.widthOfTextAtSize(line, size);
       }
 
       page.drawText(line, { x, y, size, font, color: rgb(0, 0, 0) });
@@ -263,7 +300,7 @@ function drawBody(
   return y;
 }
 
-function drawGradesTable(page: PDFPage, fonts: FontMap, grades: GradeEntry[], y: number): number {
+function drawGradesTable(page: PDFPage, fonts: FontMap, grades: GradeEntry[], y: number, L: Layout): number {
   if (grades.length === 0) return y;
 
   const font = fonts["sans"];
@@ -272,10 +309,10 @@ function drawGradesTable(page: PDFPage, fonts: FontMap, grades: GradeEntry[], y:
   const rowHeight = 16;
 
   const cols = {
-    subject: MARGIN_LEFT,
-    credits: MARGIN_LEFT + 270,
-    semester: MARGIN_LEFT + 340,
-    grade: MARGIN_LEFT + 410,
+    subject: L.ml,
+    credits: L.ml + 270,
+    semester: L.ml + 340,
+    grade: L.ml + 410,
   };
 
   page.drawText("Materia", { x: cols.subject, y, size, font: boldFont, color: rgb(0, 0, 0) });
@@ -285,7 +322,7 @@ function drawGradesTable(page: PDFPage, fonts: FontMap, grades: GradeEntry[], y:
 
   y -= 4;
   page.drawLine({
-    start: { x: MARGIN_LEFT, y }, end: { x: PAGE_WIDTH - MARGIN_RIGHT, y },
+    start: { x: L.ml, y }, end: { x: L.pw - L.mr, y },
     thickness: 0.5, color: rgb(0, 0, 0),
   });
   y -= rowHeight;
@@ -299,35 +336,34 @@ function drawGradesTable(page: PDFPage, fonts: FontMap, grades: GradeEntry[], y:
   }
 
   page.drawLine({
-    start: { x: MARGIN_LEFT, y: y + 12 }, end: { x: PAGE_WIDTH - MARGIN_RIGHT, y: y + 12 },
+    start: { x: L.ml, y: y + 12 }, end: { x: L.pw - L.mr, y: y + 12 },
     thickness: 0.5, color: rgb(0, 0, 0),
   });
 
   return y - 8;
 }
 
-function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: number): number {
+function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: number, L: Layout): number {
   const boldFont = fonts["sans-bold"];
   const font = fonts["sans"];
   const nameSize = 10;
   const titleSize = 8;
   const lemaSize = 9;
 
-  // IPN lema per identity manual (before signature)
   const lemaPrefix = "A T E N T A M E N T E";
   const lema = '"La Técnica al Servicio de la Patria"';
 
   y -= 20;
   const prefixW = font.widthOfTextAtSize(lemaPrefix, lemaSize);
   page.drawText(lemaPrefix, {
-    x: MARGIN_LEFT + (CONTENT_WIDTH - prefixW) / 2, y,
+    x: L.ml + (L.cw - prefixW) / 2, y,
     size: lemaSize, font, color: rgb(0, 0, 0),
   });
 
   y -= lemaSize + 6;
   const lemaW = font.widthOfTextAtSize(lema, lemaSize);
   page.drawText(lema, {
-    x: MARGIN_LEFT + (CONTENT_WIDTH - lemaW) / 2, y,
+    x: L.ml + (L.cw - lemaW) / 2, y,
     size: lemaSize, font, color: rgb(0, 0, 0),
   });
 
@@ -335,7 +371,7 @@ function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: 
 
   for (const sig of ctx.signatures) {
     const lineWidth = 200;
-    const lineX = MARGIN_LEFT + (CONTENT_WIDTH - lineWidth) / 2;
+    const lineX = L.ml + (L.cw - lineWidth) / 2;
 
     page.drawLine({
       start: { x: lineX, y }, end: { x: lineX + lineWidth, y },
@@ -345,14 +381,14 @@ function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: 
     y -= nameSize + 4;
     const nameW = boldFont.widthOfTextAtSize(sig.name, nameSize);
     page.drawText(sig.name, {
-      x: MARGIN_LEFT + (CONTENT_WIDTH - nameW) / 2, y,
+      x: L.ml + (L.cw - nameW) / 2, y,
       size: nameSize, font: boldFont, color: rgb(0, 0, 0),
     });
 
     y -= titleSize + 4;
     const titleW = font.widthOfTextAtSize(sig.title, titleSize);
     page.drawText(sig.title, {
-      x: MARGIN_LEFT + (CONTENT_WIDTH - titleW) / 2, y,
+      x: L.ml + (L.cw - titleW) / 2, y,
       size: titleSize, font, color: rgb(0.3, 0.3, 0.3),
     });
 
@@ -360,7 +396,7 @@ function drawSignatures(page: PDFPage, fonts: FontMap, ctx: TemplateContext, y: 
       y -= titleSize + 2;
       const subW = font.widthOfTextAtSize(sig.subtitle, titleSize);
       page.drawText(sig.subtitle, {
-        x: MARGIN_LEFT + (CONTENT_WIDTH - subW) / 2, y,
+        x: L.ml + (L.cw - subW) / 2, y,
         size: titleSize, font, color: rgb(0.3, 0.3, 0.3),
       });
     }
@@ -375,17 +411,16 @@ async function drawImage(
   doc: PDFDocument,
   page: PDFPage,
   section: ImageSection,
-  y: number
+  y: number,
+  L: Layout
 ): Promise<number> {
   const filePath = section.content;
   let bytes: Uint8Array;
   let ext: string;
 
-  // Support in-memory buffer images from DB (base64 prefixed with "buffer:")
   if (filePath.startsWith("buffer:")) {
     const b64 = filePath.slice(7);
     bytes = Uint8Array.from(Buffer.from(b64, "base64"));
-    // Detect format from first bytes (PNG: 89 50 4E 47, JPG: FF D8 FF)
     ext = bytes[0] === 0x89 && bytes[1] === 0x50 ? ".png" : ".jpg";
   } else {
     if (!fs.existsSync(filePath)) {
@@ -407,11 +442,11 @@ async function drawImage(
   if (section.style.x !== undefined) {
     x = section.style.x;
   } else if (section.style.align === "center") {
-    x = MARGIN_LEFT + (CONTENT_WIDTH - width) / 2;
+    x = L.ml + (L.cw - width) / 2;
   } else if (section.style.align === "right") {
-    x = PAGE_WIDTH - MARGIN_RIGHT - width;
+    x = L.pw - L.mr - width;
   } else {
-    x = MARGIN_LEFT;
+    x = L.ml;
   }
 
   if (section.style.pageBottom) {
@@ -419,17 +454,53 @@ async function drawImage(
     return y;
   }
 
-  // Absolute positioning: y is offset from page top, doesn't affect flow
   if (section.style.position === "absolute") {
     const topOffset = section.style.y ?? 0;
-    const pdfY = PAGE_HEIGHT - topOffset - height;
+    const pdfY = L.ph - topOffset - height;
     page.drawImage(image, { x, y: pdfY, width, height });
     return y;
   }
 
   page.drawImage(image, { x, y: y - height, width, height });
-
   return y - height;
+}
+
+async function drawWatermark(
+  doc: PDFDocument,
+  page: PDFPage,
+  section: ImageSection,
+  L: Layout,
+): Promise<void> {
+  const filePath = section.content;
+  let bytes: Uint8Array;
+  let ext: string;
+
+  if (filePath.startsWith("buffer:")) {
+    const b64 = filePath.slice(7);
+    bytes = Uint8Array.from(Buffer.from(b64, "base64"));
+    ext = bytes[0] === 0x89 && bytes[1] === 0x50 ? ".png" : ".jpg";
+  } else {
+    return;
+  }
+
+  try {
+    const image =
+      ext === ".jpg" || ext === ".jpeg"
+        ? await doc.embedJpg(bytes)
+        : await doc.embedPng(bytes);
+
+    const wmWidth = 200;
+    const wmHeight = wmWidth * (image.height / image.width);
+    page.drawImage(image, {
+      x: (L.pw - wmWidth) / 2,
+      y: (L.ph - wmHeight) / 2,
+      width: wmWidth,
+      height: wmHeight,
+      opacity: 0.08,
+    });
+  } catch {
+    Logger.warn("PDF", "Could not render watermark");
+  }
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -439,7 +510,7 @@ function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
-function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection & { _colors?: { headerBarColor?: string; accentColor?: string } }): void {
+function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection & { _colors?: { headerBarColor?: string; accentColor?: string }; _lineThickness?: number }, L: Layout): void {
   const font = fonts[section.style.font];
   const size = section.style.fontSize;
   const text = typeof section.content === "string" ? section.content : "";
@@ -453,13 +524,14 @@ function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection & { 
     : [0.35, 0.08, 0.12] as [number, number, number];
 
   const lineStartX = 120;
-  const lineEndX = PAGE_WIDTH - 35;
+  const lineEndX = L.pw - 35;
   const lineY = 48;
+  const thickness = section._lineThickness ?? 1.8;
 
   page.drawLine({
     start: { x: lineStartX, y: lineY },
     end: { x: lineEndX, y: lineY },
-    thickness: 1.8,
+    thickness,
     color: rgb(lineColor[0], lineColor[1], lineColor[2]),
   });
 
