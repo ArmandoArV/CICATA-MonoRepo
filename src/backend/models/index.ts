@@ -18,3 +18,4 @@ export {
   toDocFormatDTO,
   toDocFolioDTO,
 } from "./document.model";
+export { toLetterheadConfigDTO } from "./letterhead.model";

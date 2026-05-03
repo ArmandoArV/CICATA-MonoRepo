@@ -234,6 +234,20 @@ CREATE TABLE docFolios (
     CONSTRAINT fk_folio_reviewed   FOREIGN KEY (reviewedBy) REFERENCES users(idUser)
 );
 
+CREATE TABLE letterheadConfig (
+    id              INT          NOT NULL DEFAULT 1,
+    logoHeader      MEDIUMBLOB   NULL COMMENT 'PNG/JPG of header-left logo',
+    topRight        MEDIUMBLOB   NULL COMMENT 'PNG/JPG of top-right decoration',
+    footerBottom    MEDIUMBLOB   NULL COMMENT 'PNG/JPG of footer-left image',
+    headerBarColor  VARCHAR(7)   NOT NULL DEFAULT '#8B1832' COMMENT 'Hex color for footer line',
+    accentColor     VARCHAR(7)   NOT NULL DEFAULT '#591020' COMMENT 'Hex color for footer text',
+    updatedAt       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT ck_singleton CHECK (id = 1)
+);
+
+INSERT INTO letterheadConfig (id) VALUES (1);
+
 -- ========================================================
 -- 5. TRIGGERS Y EVENT SCHEDULER
 -- ========================================================

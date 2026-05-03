@@ -19,7 +19,7 @@ import { formatDateSpanish } from "./rules";
  * grades-table, signature). This file wraps them with the standard layout.
  */
 
-// ── Asset paths (single source of truth) ──────────────
+// ── Asset paths (fallback when no DB overrides) ───────
 
 const ASSETS_DIR = path.join(process.cwd(), "src/backend/assets");
 
@@ -29,19 +29,37 @@ export const ASSETS = {
   topRight: path.join(ASSETS_DIR, "TopRight.png"),
 };
 
+// ── Letterhead override data (loaded from DB) ─────────
+
+export interface LetterheadOverrides {
+  logoHeader?: Buffer | null;
+  topRight?: Buffer | null;
+  footerBottom?: Buffer | null;
+  headerBarColor?: string;
+  accentColor?: string;
+}
+
 // ── Layout constants (safe content boundaries in points) ──
 
-/** Top of content area (below header images).
- * The top-right image extends ~125pt from page top; MARGIN_TOP is 72pt,
- * so we need at least 125-72 = 53pt to clear images. Use 60 for breathing room. */
+/** Top of content area (below header images). */
 export const CONTENT_START_MARGIN_TOP = 60;
 
 /** The fixed image sections that form the page "brochure" */
-function headerImages(): AnyTemplateSection[] {
+function headerImages(overrides?: LetterheadOverrides): AnyTemplateSection[] {
+  const headerContent =
+    overrides?.logoHeader && overrides.logoHeader.length > 0
+      ? `buffer:${overrides.logoHeader.toString("base64")}`
+      : ASSETS.header;
+
+  const topRightContent =
+    overrides?.topRight && overrides.topRight.length > 0
+      ? `buffer:${overrides.topRight.toString("base64")}`
+      : ASSETS.topRight;
+
   return [
     {
       type: "image",
-      content: ASSETS.header,
+      content: headerContent,
       style: {
         width: 350,
         height: 65,
@@ -52,7 +70,7 @@ function headerImages(): AnyTemplateSection[] {
     } as ImageSection,
     {
       type: "image",
-      content: ASSETS.topRight,
+      content: topRightContent,
       style: {
         width: 90,
         height: 90,
@@ -77,11 +95,16 @@ function folioDateSection(ctx: TemplateContext): AnyTemplateSection {
 }
 
 /** Footer image (bottom-left corner) + maroon line + address */
-function footerSections(): AnyTemplateSection[] {
+function footerSections(overrides?: LetterheadOverrides): AnyTemplateSection[] {
+  const footerContent =
+    overrides?.footerBottom && overrides.footerBottom.length > 0
+      ? `buffer:${overrides.footerBottom.toString("base64")}`
+      : ASSETS.footer;
+
   return [
     {
       type: "image",
-      content: ASSETS.footer,
+      content: footerContent,
       style: { width: 80, height: 80, x: 25, pageBottom: true },
     } as ImageSection,
     {
@@ -89,7 +112,11 @@ function footerSections(): AnyTemplateSection[] {
       content:
         "Boulevard de la Tecnología, 1036, Atlacholoaya, Código Postal 62790, Xochitepec, | Morelos. Tel: 777 308 61 01 | www.ipn.mx | www.cicatamorelos.ipn.mx",
       style: { fontSize: 6, font: "sans", align: "left" },
-    } as TemplateSection,
+      // Attach color overrides for the footer renderer
+      _colors: overrides
+        ? { headerBarColor: overrides.headerBarColor, accentColor: overrides.accentColor }
+        : undefined,
+    } as TemplateSection & { _colors?: { headerBarColor?: string; accentColor?: string } },
   ];
 }
 
@@ -104,11 +131,13 @@ function footerSections(): AnyTemplateSection[] {
 export function wrapWithLayout(
   ctx: TemplateContext,
   contentSections: AnyTemplateSection[],
+  overrides?: LetterheadOverrides,
 ): AnyTemplateSection[] {
+  const ov = overrides ?? ctx.letterheadOverrides;
   return [
-    ...headerImages(),
+    ...headerImages(ov),
     folioDateSection(ctx),
     ...contentSections,
-    ...footerSections(),
+    ...footerSections(ov),
   ];
 }

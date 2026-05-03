@@ -14,6 +14,7 @@ import type {
 } from "@/backend/templates/types";
 import { formatDateSpanish } from "@/backend/templates/rules";
 import { Logger } from "@/backend/utils";
+import { LetterheadRepository } from "@/backend/repositories";
 
 // ── Page constants ────────────────────────────────────
 
@@ -77,6 +78,24 @@ export const DocumentService = {
     ctx: TemplateContext,
     options?: GenerateOptions
   ): Promise<Uint8Array> {
+    // Load letterhead config from DB and inject into context
+    if (!ctx.letterheadOverrides) {
+      try {
+        const lhRow = await LetterheadRepository.get();
+        if (lhRow) {
+          ctx.letterheadOverrides = {
+            logoHeader: lhRow.logoHeader,
+            topRight: lhRow.topRight,
+            footerBottom: lhRow.footerBottom,
+            headerBarColor: lhRow.headerBarColor,
+            accentColor: lhRow.accentColor,
+          };
+        }
+      } catch {
+        Logger.warn("PDF", "Could not load letterhead config from DB, using static assets");
+      }
+    }
+
     const doc = await PDFDocument.create();
     const fonts = await loadFonts(doc);
     const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -359,14 +378,23 @@ async function drawImage(
   y: number
 ): Promise<number> {
   const filePath = section.content;
+  let bytes: Uint8Array;
+  let ext: string;
 
-  if (!fs.existsSync(filePath)) {
-    Logger.warn("PDF", `Image not found, skipping: ${filePath}`);
-    return y;
+  // Support in-memory buffer images from DB (base64 prefixed with "buffer:")
+  if (filePath.startsWith("buffer:")) {
+    const b64 = filePath.slice(7);
+    bytes = Uint8Array.from(Buffer.from(b64, "base64"));
+    // Detect format from first bytes (PNG: 89 50 4E 47, JPG: FF D8 FF)
+    ext = bytes[0] === 0x89 && bytes[1] === 0x50 ? ".png" : ".jpg";
+  } else {
+    if (!fs.existsSync(filePath)) {
+      Logger.warn("PDF", `Image not found, skipping: ${filePath}`);
+      return y;
+    }
+    bytes = fs.readFileSync(filePath);
+    ext = path.extname(filePath).toLowerCase();
   }
-
-  const bytes = fs.readFileSync(filePath);
-  const ext = path.extname(filePath).toLowerCase();
 
   const image =
     ext === ".jpg" || ext === ".jpeg"
@@ -404,12 +432,26 @@ async function drawImage(
   return y - height;
 }
 
-function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection): void {
+function hexToRgb(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return [r, g, b];
+}
+
+function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection & { _colors?: { headerBarColor?: string; accentColor?: string } }): void {
   const font = fonts[section.style.font];
   const size = section.style.fontSize;
   const text = typeof section.content === "string" ? section.content : "";
 
-  // Identity manual 2026: maroon line + address at page bottom
+  const lineColor = section._colors?.headerBarColor
+    ? hexToRgb(section._colors.headerBarColor)
+    : [0.545, 0.094, 0.129] as [number, number, number];
+
+  const textColor = section._colors?.accentColor
+    ? hexToRgb(section._colors.accentColor)
+    : [0.35, 0.08, 0.12] as [number, number, number];
+
   const lineStartX = 120;
   const lineEndX = PAGE_WIDTH - 35;
   const lineY = 48;
@@ -418,7 +460,7 @@ function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection): vo
     start: { x: lineStartX, y: lineY },
     end: { x: lineEndX, y: lineY },
     thickness: 1.8,
-    color: rgb(0.545, 0.094, 0.129),
+    color: rgb(lineColor[0], lineColor[1], lineColor[2]),
   });
 
   if (text) {
@@ -428,7 +470,7 @@ function drawFooter(page: PDFPage, fonts: FontMap, section: TemplateSection): vo
     for (const line of lines) {
       page.drawText(line, {
         x: lineStartX, y: textY, size, font,
-        color: rgb(0.35, 0.08, 0.12),
+        color: rgb(textColor[0], textColor[1], textColor[2]),
       });
       textY -= size * 1.3;
     }

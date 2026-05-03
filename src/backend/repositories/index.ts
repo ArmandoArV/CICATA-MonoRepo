@@ -21,3 +21,4 @@ export {
   DocFormatRepository,
   DocFolioRepository,
 } from "./document.repository";
+export { LetterheadRepository } from "./letterhead.repository";

@@ -187,6 +187,15 @@ export interface DocFolioDTO {
   issuedAt: string;
 }
 
+export interface LetterheadConfigDTO {
+  logoHeader: string | null;
+  topRight: string | null;
+  footerBottom: string | null;
+  headerBarColor: string;
+  accentColor: string;
+  updatedAt: string;
+}
+
 // ── Auth contracts ────────────────────────────────────
 
 export interface AuthTokenPayload {

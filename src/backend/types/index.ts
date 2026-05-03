@@ -191,6 +191,16 @@ export interface DocFolioRow {
   issuedAt: Date;
 }
 
+export interface LetterheadConfigRow {
+  id: number;
+  logoHeader: Buffer | null;
+  topRight: Buffer | null;
+  footerBottom: Buffer | null;
+  headerBarColor: string;
+  accentColor: string;
+  updatedAt: Date;
+}
+
 export interface AuthenticatedRequest {
   userId: number;
   adminId: number;

@@ -90,6 +90,13 @@ export interface TemplateContext {
   grades?: GradeEntry[];
   signatures: SignatureBlock[];
   customFields?: Record<string, string>;
+  letterheadOverrides?: {
+    logoHeader?: Buffer | null;
+    topRight?: Buffer | null;
+    footerBottom?: Buffer | null;
+    headerBarColor?: string;
+    accentColor?: string;
+  };
 }
 
 // ── Template definition ───────────────────────────────

@@ -8,9 +8,9 @@ import {
   faPlus,
   faChevronLeft,
   faChevronRight,
-  faClockRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import GenerateDocumentModal from "@/frontend/components/documents/GenerateDocumentModal";
+import MembretadoTab from "@/frontend/components/documents/MembretadoTab";
 
 type Tab = "estudiantes" | "profesores" | "membretado";
 
@@ -351,15 +351,7 @@ export default function DocumentosPage() {
       )}
 
       {/* ═══ MEMBRETADO TAB ═══ */}
-      {tab === "membretado" && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <FontAwesomeIcon icon={faClockRotateLeft} className="h-7 w-7 text-gray-400" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-700">Próximamente</h3>
-          <p className="mt-1 text-sm text-gray-500">La sección de membretado está en desarrollo.</p>
-        </div>
-      )}
+      {tab === "membretado" && <MembretadoTab token={token} />}
 
       {/* ═══ Generate Document Modal ═══ */}
       <GenerateDocumentModal
