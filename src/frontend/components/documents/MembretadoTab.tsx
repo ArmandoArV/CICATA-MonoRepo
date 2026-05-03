@@ -21,12 +21,13 @@ interface SlotMeta {
   key: "logoHeader" | "topRight" | "footerBottom";
   label: string;
   description: string;
+  fileName: string;
 }
 
 const SLOTS: SlotMeta[] = [
-  { key: "logoHeader", label: "Logo Header", description: "Imagen superior izquierda del membrete (350×65 px recomendado)" },
-  { key: "topRight", label: "Top Right", description: "Decoración superior derecha (90×90 px recomendado)" },
-  { key: "footerBottom", label: "Footer Bottom", description: "Imagen inferior izquierda del membrete (80×80 px recomendado)" },
+  { key: "logoHeader", label: "Logo Header", description: "Imagen superior izquierda del membrete (350×65 px recomendado)", fileName: "LogoHeader.png" },
+  { key: "topRight", label: "Top Right", description: "Decoración superior derecha (90×90 px recomendado)", fileName: "TopRight.png" },
+  { key: "footerBottom", label: "Footer Bottom", description: "Imagen inferior izquierda del membrete (80×80 px recomendado)", fileName: "FooterBottomLeft.png" },
 ];
 
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
@@ -64,6 +65,13 @@ export default function MembretadoTab({ token }: Props) {
 
   const getSlotImage = (key: string): string | null => {
     if (key in pending) return pending[key] ?? null;
+    if (!config) return null;
+    return (config as unknown as Record<string, string | null>)[key] ?? null;
+  };
+
+  // The CURRENT image is always from config (what's saved in DB/static).
+  // Pending uploads only replace it visually after "Guardar Cambios" saves.
+  const getCurrentImage = (key: string): string | null => {
     if (!config) return null;
     return (config as unknown as Record<string, string | null>)[key] ?? null;
   };
@@ -149,14 +157,15 @@ export default function MembretadoTab({ token }: Props) {
     );
   }
 
-  const previewImage = previewSlot ? getSlotImage(previewSlot) : null;
+  const previewImage = previewSlot ? getCurrentImage(previewSlot) : null;
 
   return (
     <div className="space-y-8">
       {/* ── Image Slots ── */}
       {SLOTS.map((slot) => {
-        const img = getSlotImage(slot.key);
+        const currentImg = getCurrentImage(slot.key);
         const isPending = slot.key in pending;
+        const pendingImg = isPending ? pending[slot.key] : null;
         return (
           <section key={slot.key} className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
@@ -164,66 +173,96 @@ export default function MembretadoTab({ token }: Props) {
               {slot.label}
             </div>
 
-            {/* Current file display */}
-            {img && (
-              <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm transition-all animate-in fade-in">
-                <span className="truncate text-sm text-gray-700">
-                  {isPending ? "(nueva imagen pendiente)" : `${slot.key}_actual`}
-                </span>
-                <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-5">
+              {/* ── LEFT: Upload area ── */}
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-gray-500">Actualizar Imagen</p>
+
+                {/* Pending file indicator */}
+                {isPending && pendingImg && (
+                  <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                    Nueva imagen pendiente de guardar
+                  </div>
+                )}
+
+                <div
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={(e) => handleDrop(slot, e)}
+                  className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/60 px-4 py-6 transition hover:border-[#7A154A]/40 hover:bg-rose-50/20"
+                >
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#7A154A]/10">
+                    <FontAwesomeIcon icon={faCloudArrowUp} className="h-4 w-4 text-[#7A154A]" />
+                  </div>
+                  <p className="text-xs font-medium text-gray-700">Arrastra y suelta el archivo aquí</p>
+                  <p className="mt-0.5 text-[11px] text-gray-400">o utiliza el botón para buscar</p>
+
+                  <input
+                    ref={(el) => { fileInputRefs.current[slot.key] = el; }}
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.svg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileSelect(slot, file);
+                      e.target.value = "";
+                    }}
+                  />
                   <button
                     type="button"
-                    onClick={() => setPreviewSlot(slot.key)}
-                    className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
-                    title="Vista previa"
+                    onClick={() => fileInputRefs.current[slot.key]?.click()}
+                    className="mt-3 rounded-lg bg-[#7A154A] px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-[#5e1039] cursor-pointer"
                   >
-                    <FontAwesomeIcon icon={faEye} className="h-4 w-4" />
+                    Seleccionar Archivo
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteSlot(slot)}
-                    className="rounded-lg p-2 text-gray-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer"
-                    title="Eliminar"
-                  >
-                    <FontAwesomeIcon icon={faTrashCan} className="h-4 w-4" />
-                  </button>
+
+                  <p className="mt-2 text-[10px] text-gray-400">{slot.description}</p>
+                  <p className="text-[10px] text-gray-400">PNG, JPG, SVG (Máx: 5MB)</p>
                 </div>
               </div>
-            )}
 
-            {/* Upload area */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={(e) => handleDrop(slot, e)}
-              className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/60 px-6 py-8 transition hover:border-[#7A154A]/40 hover:bg-rose-50/20"
-            >
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#7A154A]/10">
-                <FontAwesomeIcon icon={faCloudArrowUp} className="h-5 w-5 text-[#7A154A]" />
+              {/* ── RIGHT: Current image preview ── */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-500">Imagen Actual</p>
+                  {currentImg && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSlot(slot.key)}
+                        className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+                        title="Vista previa completa"
+                      >
+                        <FontAwesomeIcon icon={faEye} className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteSlot(slot)}
+                        className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                        title="Eliminar"
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-4" style={{ minHeight: "180px" }}>
+                  {currentImg ? (
+                    <img
+                      src={`data:image/png;base64,${currentImg}`}
+                      alt={slot.label}
+                      className="max-h-[160px] max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-400">Sin imagen</p>
+                  )}
+                </div>
+
+                {currentImg && (
+                  <p className="text-center text-[11px] text-gray-400">{slot.fileName}</p>
+                )}
               </div>
-              <p className="text-sm font-medium text-gray-700">Arrastra y suelta el archivo aquí</p>
-              <p className="mt-1 text-xs text-gray-400">o utiliza el botón para buscar en tu equipo</p>
-
-              <input
-                ref={(el) => { fileInputRefs.current[slot.key] = el; }}
-                type="file"
-                accept=".png,.jpg,.jpeg,.svg"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileSelect(slot, file);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRefs.current[slot.key]?.click()}
-                className="mt-4 rounded-lg bg-[#7A154A] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#5e1039] cursor-pointer"
-              >
-                Seleccionar Archivo
-              </button>
-
-              <p className="mt-3 text-[11px] text-gray-400">{slot.description}</p>
-              <p className="text-[11px] text-gray-400">Formatos permitidos: PNG, JPG, SVG (Máx: 5MB)</p>
             </div>
           </section>
         );
